@@ -1,4 +1,3 @@
-import html2pdf from 'html2pdf.js';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -13,64 +12,69 @@ interface ReportData {
 }
 
 export function useReportExport() {
-  const generatePDF = (reportData: ReportData) => {
-    const element = document.createElement('div');
-    element.innerHTML = `
-      <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h1 style="text-align: center; color: #1a5f3f;">${reportData.title}</h1>
-        <p style="text-align: center; color: #666;">
-          <strong>Empresa:</strong> ${reportData.company}<br>
-          <strong>Período:</strong> ${reportData.period}
-        </p>
-        
-        <hr style="margin: 20px 0; border: none; border-top: 2px solid #1a5f3f;">
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin: 20px 0;">
-          <div style="padding: 15px; background: #f0f8f5; border-left: 4px solid #22c55e;">
-            <p style="margin: 0; color: #666; font-size: 12px;">Total de Receitas</p>
-            <p style="margin: 0; font-size: 24px; font-weight: bold; color: #22c55e;">
-              R$ ${reportData.revenues.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
+  const generatePDF = async (reportData: ReportData) => {
+    try {
+      // Import dinâmico de jsPDF e html2canvas
+      const { jsPDF } = await import('jspdf');
+      const html2canvas = await import('html2canvas').then(m => m.default);
+
+      const element = document.createElement('div');
+      element.innerHTML = `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h1 style="text-align: center; color: #1a5f3f;">${reportData.title}</h1>
+          <p style="text-align: center; color: #666;">
+            <strong>Empresa:</strong> ${reportData.company}<br>
+            <strong>Período:</strong> ${reportData.period}
+          </p>
+          
+          <hr style="margin: 20px 0; border: none; border-top: 2px solid #1a5f3f;">
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin: 20px 0;">
+            <div style="padding: 15px; background: #f0f8f5; border-left: 4px solid #22c55e;">
+              <p style="margin: 0; color: #666; font-size: 12px;">Total de Receitas</p>
+              <p style="margin: 0; font-size: 24px; font-weight: bold; color: #22c55e;">
+                R$ ${reportData.revenues.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            
+            <div style="padding: 15px; background: #fef2f2; border-left: 4px solid #ef4444;">
+              <p style="margin: 0; color: #666; font-size: 12px;">Total de Despesas</p>
+              <p style="margin: 0; font-size: 24px; font-weight: bold; color: #ef4444;">
+                R$ ${reportData.expenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            
+            <div style="padding: 15px; background: #f0fdf4; border-left: 4px solid #16a34a;">
+              <p style="margin: 0; color: #666; font-size: 12px;">Resultado</p>
+              <p style="margin: 0; font-size: 24px; font-weight: bold; color: ${reportData.balance >= 0 ? '#16a34a' : '#dc2626'};">
+                R$ ${reportData.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
           </div>
           
-          <div style="padding: 15px; background: #fef2f2; border-left: 4px solid #ef4444;">
-            <p style="margin: 0; color: #666; font-size: 12px;">Total de Despesas</p>
-            <p style="margin: 0; font-size: 24px; font-weight: bold; color: #ef4444;">
-              R$ ${reportData.expenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
-          </div>
+          <hr style="margin: 20px 0; border: none; border-top: 2px solid #1a5f3f;">
           
-          <div style="padding: 15px; background: #f0fdf4; border-left: 4px solid #16a34a;">
-            <p style="margin: 0; color: #666; font-size: 12px;">Resultado</p>
-            <p style="margin: 0; font-size: 24px; font-weight: bold; color: ${reportData.balance >= 0 ? '#16a34a' : '#dc2626'};">
-              R$ ${reportData.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
-          </div>
+          <p style="text-align: right; color: #999; font-size: 12px;">
+            Gerado em ${format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+          </p>
         </div>
-        
-        <hr style="margin: 20px 0; border: none; border-top: 2px solid #1a5f3f;">
-        
-        <div style="margin-top: 20px;">
-          ${reportData.data}
-        </div>
-        
-        <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
-        
-        <p style="text-align: right; color: #999; font-size: 12px;">
-          Gerado em ${format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
-        </p>
-      </div>
-    `;
+      `;
 
-    const opt = {
-      margin: 10,
-      filename: `relatorio_${reportData.company.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' },
-    };
+      document.body.appendChild(element);
+      const canvas = await html2canvas(element);
+      document.body.removeChild(element);
 
-    html2pdf().set(opt).from(element).save();
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF();
+      const imgWidth = 190;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+
+      pdf.save(`relatorio_${reportData.company.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Erro ao gerar PDF. Tente novamente.');
+    }
   };
 
   const generateTXT = (reportData: ReportData) => {
