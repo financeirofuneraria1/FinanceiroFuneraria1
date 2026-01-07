@@ -42,12 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
           }
         }
-        
-        if (isMounted) {
-          setLoading(false);
-        }
       } catch (error) {
         console.error('Error getting session:', error);
+      } finally {
         if (isMounted) {
           setLoading(false);
         }
