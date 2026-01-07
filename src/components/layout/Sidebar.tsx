@@ -42,10 +42,10 @@ export default function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-sm font-bold text-sidebar-foreground truncate">
-              Funerária Imbituba
+              Gestão Financeira
             </h1>
             <p className="text-xs text-sidebar-foreground/70 truncate">
-              Gestão Financeira
+              Imbituba & Garopaba
             </p>
           </div>
         </div>
