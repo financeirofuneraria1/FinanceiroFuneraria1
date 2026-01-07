@@ -21,36 +21,40 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const firstLoadRef = useRef(true);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     let isMounted = true;
+    let hasSetUser = false;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
 
-        // Carrega o usuário
-        if (session?.user) {
-          const userRole = await fetchUserRole(session.user.id);
-          if (isMounted) {
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              role: userRole,
-            });
-          }
-        } else {
-          if (isMounted) {
-            setUser(null);
-          }
-        }
+        // Só atualiza se houver mudança real
+        const newUser = session?.user ? {
+          id: session.user.id,
+          email: session.user.email || '',
+          role: await fetchUserRole(session.user.id),
+        } : null;
 
-        // Desativa loading apenas na primeira vez
-        if (firstLoadRef.current) {
-          firstLoadRef.current = false;
-          if (isMounted) {
-            setLoading(false);
+        if (!hasSetUser) {
+          hasSetUser = true;
+          setUser(newUser);
+          
+          // Garante que loading seja desativado após 5 segundos no máximo
+          loadingTimeoutRef.current = setTimeout(() => {
+            if (isMounted) setLoading(false);
+          }, 5000);
+          
+          // Desativa loading imediatamente quando há sessão
+          if (session?.user || !session) {
+            if (isMounted) {
+              setLoading(false);
+            }
+            if (loadingTimeoutRef.current) {
+              clearTimeout(loadingTimeoutRef.current);
+            }
           }
         }
       }
@@ -59,6 +63,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
       subscription?.unsubscribe();
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
     };
   }, []);
 
