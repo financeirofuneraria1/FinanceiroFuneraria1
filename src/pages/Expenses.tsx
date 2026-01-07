@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useCompany } from '@/hooks/useCompany';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ interface Category {
 
 export default function Expenses() {
   const { user } = useAuth();
+  const { selectedCompany } = useCompany();
   const { toast } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -45,17 +47,20 @@ export default function Expenses() {
   });
 
   useEffect(() => {
-    if (user) {
+    if (user && selectedCompany) {
       fetchExpenses();
       fetchCategories();
     }
-  }, [user]);
+  }, [user, selectedCompany]);
 
   const fetchExpenses = async () => {
+    if (!selectedCompany) return;
+
     setLoading(true);
     const { data, error } = await supabase
       .from('expenses')
       .select('*, categories(name)')
+      .eq('company_id', selectedCompany.id)
       .order('date', { ascending: false });
 
     if (error) {
@@ -100,7 +105,7 @@ export default function Expenses() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !selectedCompany) return;
 
     setSaving(true);
 
@@ -111,6 +116,7 @@ export default function Expenses() {
       category_id: formData.category_id || null,
       notes: formData.notes || null,
       user_id: user.id,
+      company_id: selectedCompany.id,
     };
 
     let error;
@@ -170,13 +176,21 @@ export default function Expenses() {
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
+  if (!selectedCompany) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Nenhuma empresa selecionada.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Despesas</h1>
-          <p className="text-muted-foreground">Gerencie suas saídas financeiras</p>
+          <p className="text-muted-foreground">{selectedCompany.name}</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>

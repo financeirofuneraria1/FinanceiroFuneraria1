@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useCompany } from '@/hooks/useCompany';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,8 +12,17 @@ import {
   LogOut,
   Menu,
   X,
+  Building2,
+  ChevronDown,
 } from 'lucide-react';
 import { useState, memo } from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -20,6 +30,7 @@ const navItems = [
   { to: '/expenses', icon: TrendingDown, label: 'Despesas' },
   { to: '/cash-flow', icon: ArrowLeftRight, label: 'Fluxo de Caixa' },
   { to: '/reports', icon: FileText, label: 'Relatórios' },
+  { to: '/companies', icon: Building2, label: 'Empresas' },
 ];
 
 const SidebarHeader = memo(() => (
@@ -46,6 +57,37 @@ const SidebarHeader = memo(() => (
   </div>
 ));
 SidebarHeader.displayName = 'SidebarHeader';
+
+const CompanySelector = memo(() => {
+  const { companies, selectedCompany, setSelectedCompany } = useCompany();
+
+  if (companies.length === 0) return null;
+
+  return (
+    <div className="px-4 py-3 border-b border-sidebar-border">
+      <p className="text-xs text-sidebar-foreground/60 mb-2">Empresa</p>
+      <Select
+        value={selectedCompany?.id || ''}
+        onValueChange={(id) => {
+          const company = companies.find((c) => c.id === id);
+          if (company) setSelectedCompany(company);
+        }}
+      >
+        <SelectTrigger className="w-full bg-sidebar-accent/50 border-sidebar-border text-sidebar-foreground text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {companies.map((company) => (
+            <SelectItem key={company.id} value={company.id}>
+              {company.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+});
+CompanySelector.displayName = 'CompanySelector';
 
 const NavMenu = memo(({ onLinkClick }: { onLinkClick: () => void }) => (
   <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -110,6 +152,7 @@ export default memo(function Sidebar() {
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       <SidebarHeader />
+      <CompanySelector />
       <NavMenu onLinkClick={handleLinkClick} />
       <SidebarFooter user={user} onSignOut={handleSignOut} />
     </div>

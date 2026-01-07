@@ -1,6 +1,7 @@
 import { useState, useEffect, memo, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useCompany } from '@/hooks/useCompany';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -122,6 +123,7 @@ TransactionItem.displayName = 'TransactionItem';
 
 export default memo(function Dashboard() {
   const { user } = useAuth();
+  const { selectedCompany, loading: companyLoading } = useCompany();
   const [totalRevenues, setTotalRevenues] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
@@ -129,12 +131,14 @@ export default memo(function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (user && selectedCompany) {
       fetchDashboardData();
     }
-  }, [user]);
+  }, [user, selectedCompany]);
 
   const fetchDashboardData = async () => {
+    if (!selectedCompany) return;
+
     setLoading(true);
     const now = new Date();
     const monthStart = startOfMonth(now).toISOString().split('T')[0];
@@ -142,8 +146,18 @@ export default memo(function Dashboard() {
 
     try {
       const [revenuesResult, expensesResult] = await Promise.all([
-        supabase.from('revenues').select('amount').gte('date', monthStart).lte('date', monthEnd),
-        supabase.from('expenses').select('amount').gte('date', monthStart).lte('date', monthEnd),
+        supabase
+          .from('revenues')
+          .select('amount')
+          .eq('company_id', selectedCompany.id)
+          .gte('date', monthStart)
+          .lte('date', monthEnd),
+        supabase
+          .from('expenses')
+          .select('amount')
+          .eq('company_id', selectedCompany.id)
+          .gte('date', monthStart)
+          .lte('date', monthEnd),
       ]);
 
       const revenueTotal = revenuesResult.data?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
@@ -152,8 +166,18 @@ export default memo(function Dashboard() {
       setTotalExpenses(expenseTotal);
 
       const [recentRevsResult, recentExpsResult] = await Promise.all([
-        supabase.from('revenues').select('id, description, amount, date').order('date', { ascending: false }).limit(5),
-        supabase.from('expenses').select('id, description, amount, date').order('date', { ascending: false }).limit(5),
+        supabase
+          .from('revenues')
+          .select('id, description, amount, date')
+          .eq('company_id', selectedCompany.id)
+          .order('date', { ascending: false })
+          .limit(5),
+        supabase
+          .from('expenses')
+          .select('id, description, amount, date')
+          .eq('company_id', selectedCompany.id)
+          .order('date', { ascending: false })
+          .limit(5),
       ]);
 
       const combined: Transaction[] = [
@@ -170,8 +194,18 @@ export default memo(function Dashboard() {
         const end = endOfMonth(date).toISOString().split('T')[0];
 
         const [monthRevs, monthExps] = await Promise.all([
-          supabase.from('revenues').select('amount').gte('date', start).lte('date', end),
-          supabase.from('expenses').select('amount').gte('date', start).lte('date', end),
+          supabase
+            .from('revenues')
+            .select('amount')
+            .eq('company_id', selectedCompany.id)
+            .gte('date', start)
+            .lte('date', end),
+          supabase
+            .from('expenses')
+            .select('amount')
+            .eq('company_id', selectedCompany.id)
+            .gte('date', start)
+            .lte('date', end),
         ]);
 
         monthlyDataArray.push({
@@ -198,7 +232,7 @@ export default memo(function Dashboard() {
     }).format(value);
   }, []);
 
-  if (loading) {
+  if (companyLoading || loading) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-8 bg-muted rounded w-64" />
@@ -215,11 +249,19 @@ export default memo(function Dashboard() {
     );
   }
 
+  if (!selectedCompany) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Nenhuma empresa selecionada. Acesse a página de empresas para criar uma.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground capitalize">{currentMonth}</p>
+        <p className="text-muted-foreground capitalize">{selectedCompany.name} • {currentMonth}</p>
       </div>
 
       <StatsCards totalRevenues={totalRevenues} totalExpenses={totalExpenses} balance={balance} formatCurrency={formatCurrency} />

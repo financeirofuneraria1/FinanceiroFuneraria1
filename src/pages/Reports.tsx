@@ -1,6 +1,7 @@
 import { useState, useEffect, memo, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useCompany } from '@/hooks/useCompany';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, FileText, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
@@ -110,6 +111,7 @@ PieChartCard.displayName = 'PieChartCard';
 
 export default memo(function Reports() {
   const { user } = useAuth();
+  const { selectedCompany } = useCompany();
   const [period, setPeriod] = useState('month');
   const [loading, setLoading] = useState(true);
   const [totalRevenues, setTotalRevenues] = useState(0);
@@ -128,10 +130,10 @@ export default memo(function Reports() {
   ], []);
 
   useEffect(() => {
-    if (user) {
+    if (user && selectedCompany) {
       fetchReportData();
     }
-  }, [user, period]);
+  }, [user, selectedCompany, period]);
 
   const getDateRange = useMemo(() => () => {
     const now = new Date();
@@ -149,13 +151,25 @@ export default memo(function Reports() {
   }, [period]);
 
   const fetchReportData = async () => {
+    if (!selectedCompany) return;
+
     setLoading(true);
     const { start, end } = getDateRange();
 
     try {
       const [revenuesResult, expensesResult] = await Promise.all([
-        supabase.from('revenues').select('amount, categories(name)').gte('date', start).lte('date', end),
-        supabase.from('expenses').select('amount, categories(name)').gte('date', start).lte('date', end),
+        supabase
+          .from('revenues')
+          .select('amount, categories(name)')
+          .eq('company_id', selectedCompany.id)
+          .gte('date', start)
+          .lte('date', end),
+        supabase
+          .from('expenses')
+          .select('amount, categories(name)')
+          .eq('company_id', selectedCompany.id)
+          .gte('date', start)
+          .lte('date', end),
       ]);
 
       const revenues = revenuesResult.data || [];
@@ -194,8 +208,18 @@ export default memo(function Reports() {
 
         monthPromises.push(
           Promise.all([
-            supabase.from('revenues').select('amount').gte('date', monthStart).lte('date', monthEnd),
-            supabase.from('expenses').select('amount').gte('date', monthStart).lte('date', monthEnd),
+            supabase
+              .from('revenues')
+              .select('amount')
+              .eq('company_id', selectedCompany.id)
+              .gte('date', monthStart)
+              .lte('date', monthEnd),
+            supabase
+              .from('expenses')
+              .select('amount')
+              .eq('company_id', selectedCompany.id)
+              .gte('date', monthStart)
+              .lte('date', monthEnd),
           ]).then(([monthRevs, monthExps]) => ({
             month: format(date, 'MMM', { locale: ptBR }),
             revenues: monthRevs.data?.reduce((sum, r) => sum + Number(r.amount), 0) || 0,
@@ -223,13 +247,21 @@ export default memo(function Reports() {
   const balance = totalRevenues - totalExpenses;
   const periodLabel = period === 'month' ? format(new Date(), 'MMMM yyyy', { locale: ptBR }) : format(new Date(), 'yyyy');
 
+  if (!selectedCompany) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Nenhuma empresa selecionada.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Relatórios</h1>
-          <p className="text-muted-foreground capitalize">{periodLabel}</p>
+          <p className="text-muted-foreground">{selectedCompany.name} • {periodLabel}</p>
         </div>
         <Select value={period} onValueChange={setPeriod}>
           <SelectTrigger className="w-40">

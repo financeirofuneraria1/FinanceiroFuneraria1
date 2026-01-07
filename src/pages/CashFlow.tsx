@@ -1,6 +1,7 @@
 import { useState, useEffect, memo, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useCompany } from '@/hooks/useCompany';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TrendingUp, TrendingDown, ArrowLeftRight, Loader2 } from 'lucide-react';
@@ -60,6 +61,7 @@ StatsCards.displayName = 'StatsCards';
 
 export default memo(function CashFlow() {
   const { user } = useAuth();
+  const { selectedCompany } = useCompany();
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [totalRevenues, setTotalRevenues] = useState(0);
@@ -78,12 +80,14 @@ export default memo(function CashFlow() {
   );
 
   useEffect(() => {
-    if (user) {
+    if (user && selectedCompany) {
       fetchCashFlowData();
     }
-  }, [user, selectedMonth]);
+  }, [user, selectedCompany, selectedMonth]);
 
   const fetchCashFlowData = async () => {
+    if (!selectedCompany) return;
+
     setLoading(true);
     
     const [year, month] = selectedMonth.split('-').map(Number);
@@ -95,8 +99,18 @@ export default memo(function CashFlow() {
 
     try {
       const [revenuesResult, expensesResult] = await Promise.all([
-        supabase.from('revenues').select('amount, date').gte('date', start).lte('date', end),
-        supabase.from('expenses').select('amount, date').gte('date', start).lte('date', end),
+        supabase
+          .from('revenues')
+          .select('amount, date')
+          .eq('company_id', selectedCompany.id)
+          .gte('date', start)
+          .lte('date', end),
+        supabase
+          .from('expenses')
+          .select('amount, date')
+          .eq('company_id', selectedCompany.id)
+          .gte('date', start)
+          .lte('date', end),
       ]);
 
       const revenues = revenuesResult.data || [];
@@ -159,13 +173,21 @@ export default memo(function CashFlow() {
 
   const balance = totalRevenues - totalExpenses;
 
+  if (!selectedCompany) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Nenhuma empresa selecionada.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Fluxo de Caixa</h1>
-          <p className="text-muted-foreground">Acompanhe suas entradas e saídas</p>
+          <p className="text-muted-foreground">{selectedCompany.name}</p>
         </div>
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
           <SelectTrigger className="w-48">
