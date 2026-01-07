@@ -2,9 +2,11 @@ import { useState, useEffect, memo, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompany } from '@/hooks/useCompany';
+import { useReportExport } from '@/hooks/useReportExport';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, FileText, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { Loader2, FileText, TrendingUp, TrendingDown, Wallet, Download, FileJson } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -111,8 +113,7 @@ PieChartCard.displayName = 'PieChartCard';
 
 export default memo(function Reports() {
   const { user } = useAuth();
-  const { selectedCompany } = useCompany();
-  const [period, setPeriod] = useState('month');
+  const { selectedCompany } = useCompany();  const { generatePDF, generateTXT } = useReportExport();  const [period, setPeriod] = useState('month');
   const [loading, setLoading] = useState(true);
   const [totalRevenues, setTotalRevenues] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
@@ -263,15 +264,51 @@ export default memo(function Reports() {
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Relatórios</h1>
           <p className="text-muted-foreground">{selectedCompany.name} • {periodLabel}</p>
         </div>
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="month">Este Mês</SelectItem>
-            <SelectItem value="year">Este Ano</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => generateTXT({
+              title: 'Relatório Financeiro',
+              company: selectedCompany.name,
+              period: periodLabel,
+              revenues: totalRevenues,
+              expenses: totalExpenses,
+              balance: totalRevenues - totalExpenses,
+              data: ''
+            })}
+            className="gap-2"
+          >
+            <FileJson className="h-4 w-4" />
+            TXT
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => generatePDF({
+              title: 'Relatório Financeiro',
+              company: selectedCompany.name,
+              period: periodLabel,
+              revenues: totalRevenues,
+              expenses: totalExpenses,
+              balance: totalRevenues - totalExpenses,
+              data: ''
+            })}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            PDF
+          </Button>
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="month">Este Mês</SelectItem>
+              <SelectItem value="year">Este Ano</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {loading ? (
