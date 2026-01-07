@@ -24,10 +24,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+    let initialized = false;
 
     const initAuth = async () => {
+      if (initialized) return;
+      initialized = true;
+
       try {
-        // Primeiro tenta recuperar a sessão armazenada
+        // Recupera a sessão armazenada
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!isMounted) return;
@@ -71,6 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (isMounted) {
             setUser(null);
           }
+        }
+        
+        // Garante que loading seja false após qualquer mudança
+        if (isMounted) {
+          setLoading(false);
         }
       }
     );

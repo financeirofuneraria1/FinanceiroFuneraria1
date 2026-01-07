@@ -60,7 +60,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       const { data, error: err } = await supabase
         .from('companies')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (err) throw err;
