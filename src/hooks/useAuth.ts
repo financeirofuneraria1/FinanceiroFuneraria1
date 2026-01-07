@@ -23,17 +23,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getSession = async () => {
+    let isMounted = true;
+
+    const initAuth = async () => {
       try {
         const { data } = await supabase.auth.getSession();
+        
+        if (!isMounted) return;
+
         if (data.session?.user) {
-          // Initialize profile para novo usuário
-          try {
-            await supabase.rpc('init_user_profile');
-          } catch (error) {
-            console.error('Error initializing profile:', error);
-          }
-          
           const userRole = await fetchUserRole(data.session.user.id);
           setUser({
             id: data.session.user.id,
@@ -44,34 +42,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Error getting session:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
-    getSession();
+    initAuth();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        // Initialize profile para novo usuário
-        try {
-          await supabase.rpc('init_user_profile');
-        } catch (error) {
-          console.error('Error initializing profile:', error);
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!isMounted) return;
+
+        if (session?.user) {
+          const userRole = await fetchUserRole(session.user.id);
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            role: userRole,
+          });
+        } else {
+          setUser(null);
         }
-        
-        const userRole = await fetchUserRole(session.user.id);
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          role: userRole,
-        });
-      } else {
-        setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    );
 
     return () => {
+      isMounted = false;
       authListener?.subscription?.unsubscribe();
     };
   }, []);
@@ -84,9 +82,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('id', userId)
         .single();
 
-      return (data?.role as 'admin' | 'user') || 'user';
+      if (!data) {
+        // Se não existe profile, criar um
+        await supabase.rpc('init_user_profile');
+        return 'user';
+      }
+
+      return (data.role as 'admin' | 'user') || 'user';
     } catch (error) {
       console.error('Error fetching user role:', error);
+      // Tentar criar profile se não existir
+      try {
+        await supabase.rpc('init_user_profile');
+      } catch (rpcError) {
+        console.error('Error initializing profile:', rpcError);
+      }
       return 'user';
     }
   };
@@ -146,11 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
   };
 
-  return createElement(
-    AuthContext.Provider,
-    { value },
-    children
-  );
+  return createElement(AuthContext.Provider, { value }, children);
 }
 
 export function useAuth() {

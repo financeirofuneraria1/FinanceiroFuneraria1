@@ -10,6 +10,11 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON user_profiles;
+
+-- Create new policies
 CREATE POLICY "Users can view their own profile"
   ON user_profiles FOR SELECT
   USING (auth.uid() = id);
@@ -22,10 +27,9 @@ CREATE POLICY "Users can update their own profile"
 -- ============================================
 -- UPDATE RLS POLICIES FOR REVENUES
 -- ============================================
--- DROP old policies
 DROP POLICY IF EXISTS "Revenues: Users can delete their own revenues" ON revenues;
+DROP POLICY IF EXISTS "Revenues: Only admins can delete revenues" ON revenues;
 
--- CREATE new delete policy (only admins can delete)
 CREATE POLICY "Revenues: Only admins can delete revenues"
   ON revenues FOR DELETE
   USING (
@@ -39,10 +43,9 @@ CREATE POLICY "Revenues: Only admins can delete revenues"
 -- ============================================
 -- UPDATE RLS POLICIES FOR EXPENSES
 -- ============================================
--- DROP old policies
 DROP POLICY IF EXISTS "Expenses: Users can delete their own expenses" ON expenses;
+DROP POLICY IF EXISTS "Expenses: Only admins can delete expenses" ON expenses;
 
--- CREATE new delete policy (only admins can delete)
 CREATE POLICY "Expenses: Only admins can delete expenses"
   ON expenses FOR DELETE
   USING (
@@ -54,9 +57,14 @@ CREATE POLICY "Expenses: Only admins can delete expenses"
   );
 
 -- ============================================
+-- DROP EXISTING FUNCTION IF EXISTS
+-- ============================================
+DROP FUNCTION IF EXISTS public.init_user_profile();
+
+-- ============================================
 -- CREATE FUNCTION TO INITIALIZE USER PROFILE
 -- ============================================
-CREATE OR REPLACE FUNCTION public.init_user_profile()
+CREATE FUNCTION public.init_user_profile()
 RETURNS void AS $$
 BEGIN
   INSERT INTO user_profiles (id, role)
