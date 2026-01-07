@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, createElement } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode, createElement } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface User {
@@ -21,17 +21,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
     let isMounted = true;
-    let initialized = false;
 
     const initAuth = async () => {
-      if (initialized) return;
-      initialized = true;
-
       try {
-        // Recupera a sessão armazenada
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!isMounted) return;
@@ -46,9 +45,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
           }
         }
+        
+        if (isMounted) {
+          setLoading(false);
+        }
       } catch (error) {
         console.error('Error getting session:', error);
-      } finally {
         if (isMounted) {
           setLoading(false);
         }
@@ -75,11 +77,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (isMounted) {
             setUser(null);
           }
-        }
-        
-        // Garante que loading seja false após qualquer mudança
-        if (isMounted) {
-          setLoading(false);
         }
       }
     );
