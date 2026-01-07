@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,50 @@ interface DailyData {
   balance: number;
 }
 
-export default function CashFlow() {
+const StatsCards = memo(({ totalRevenues, totalExpenses, balance, formatCurrency }: any) => (
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+    <Card className="border-l-4 border-l-success">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          Total de Entradas
+        </CardTitle>
+        <TrendingUp className="h-5 w-5 text-success" />
+      </CardHeader>
+      <CardContent>
+        <p className="text-2xl font-bold text-success">{formatCurrency(totalRevenues)}</p>
+      </CardContent>
+    </Card>
+
+    <Card className="border-l-4 border-l-destructive">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          Total de Saídas
+        </CardTitle>
+        <TrendingDown className="h-5 w-5 text-destructive" />
+      </CardHeader>
+      <CardContent>
+        <p className="text-2xl font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
+      </CardContent>
+    </Card>
+
+    <Card className={`border-l-4 ${balance >= 0 ? 'border-l-success' : 'border-l-destructive'}`}>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          Saldo do Período
+        </CardTitle>
+        <ArrowLeftRight className={`h-5 w-5 ${balance >= 0 ? 'text-success' : 'text-destructive'}`} />
+      </CardHeader>
+      <CardContent>
+        <p className={`text-2xl font-bold ${balance >= 0 ? 'text-success' : 'text-destructive'}`}>
+          {formatCurrency(balance)}
+        </p>
+      </CardContent>
+    </Card>
+  </div>
+));
+StatsCards.displayName = 'StatsCards';
+
+export default memo(function CashFlow() {
   const { user } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
@@ -23,13 +66,16 @@ export default function CashFlow() {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const monthOptions = Array.from({ length: 12 }, (_, i) => {
-    const date = subMonths(new Date(), i);
-    return {
-      value: format(date, 'yyyy-MM'),
-      label: format(date, 'MMMM yyyy', { locale: ptBR }),
-    };
-  });
+  const monthOptions = useMemo(() => 
+    Array.from({ length: 12 }, (_, i) => {
+      const date = subMonths(new Date(), i);
+      return {
+        value: format(date, 'yyyy-MM'),
+        label: format(date, 'MMMM yyyy', { locale: ptBR }),
+      };
+    }),
+    []
+  );
 
   useEffect(() => {
     if (user) {
@@ -48,49 +94,41 @@ export default function CashFlow() {
     const end = format(endDate, 'yyyy-MM-dd');
 
     try {
-      const { data: revenues } = await supabase
-        .from('revenues')
-        .select('amount, date')
-        .gte('date', start)
-        .lte('date', end);
+      const [revenuesResult, expensesResult] = await Promise.all([
+        supabase.from('revenues').select('amount, date').gte('date', start).lte('date', end),
+        supabase.from('expenses').select('amount, date').gte('date', start).lte('date', end),
+      ]);
 
-      const { data: expenses } = await supabase
-        .from('expenses')
-        .select('amount, date')
-        .gte('date', start)
-        .lte('date', end);
+      const revenues = revenuesResult.data || [];
+      const expenses = expensesResult.data || [];
 
-      // Calculate totals
-      const revTotal = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
-      const expTotal = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      const revTotal = revenues.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+      const expTotal = expenses.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
       setTotalRevenues(revTotal);
       setTotalExpenses(expTotal);
 
-      // Group by day
       const dailyMap = new Map<string, { revenues: number; expenses: number }>();
       
-      // Initialize all days of the month
       const daysInMonth = endDate.getDate();
       for (let day = 1; day <= daysInMonth; day++) {
         const dayStr = format(new Date(year, month - 1, day), 'dd/MM');
         dailyMap.set(dayStr, { revenues: 0, expenses: 0 });
       }
 
-      revenues?.forEach((r) => {
+      revenues.forEach((r) => {
         const dayStr = format(new Date(r.date), 'dd/MM');
         const current = dailyMap.get(dayStr) || { revenues: 0, expenses: 0 };
         current.revenues += Number(r.amount);
         dailyMap.set(dayStr, current);
       });
 
-      expenses?.forEach((e) => {
+      expenses.forEach((e) => {
         const dayStr = format(new Date(e.date), 'dd/MM');
         const current = dailyMap.get(dayStr) || { revenues: 0, expenses: 0 };
         current.expenses += Number(e.amount);
         dailyMap.set(dayStr, current);
       });
 
-      // Convert to array with running balance
       let runningBalance = 0;
       const dailyArray: DailyData[] = [];
       
@@ -112,12 +150,12 @@ export default function CashFlow() {
     }
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = useMemo(() => (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
-  };
+  }, []);
 
   const balance = totalRevenues - totalExpenses;
 
@@ -149,46 +187,7 @@ export default function CashFlow() {
         </div>
       ) : (
         <>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-            <Card className="border-l-4 border-l-success">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total de Entradas
-                </CardTitle>
-                <TrendingUp className="h-5 w-5 text-success" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold text-success">{formatCurrency(totalRevenues)}</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-destructive">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total de Saídas
-                </CardTitle>
-                <TrendingDown className="h-5 w-5 text-destructive" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
-              </CardContent>
-            </Card>
-
-            <Card className={`border-l-4 ${balance >= 0 ? 'border-l-success' : 'border-l-destructive'}`}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Saldo do Período
-                </CardTitle>
-                <ArrowLeftRight className={`h-5 w-5 ${balance >= 0 ? 'text-success' : 'text-destructive'}`} />
-              </CardHeader>
-              <CardContent>
-                <p className={`text-2xl font-bold ${balance >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {formatCurrency(balance)}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          <StatsCards totalRevenues={totalRevenues} totalExpenses={totalExpenses} balance={balance} formatCurrency={formatCurrency} />
 
           {/* Chart */}
           <Card>
@@ -234,6 +233,7 @@ export default function CashFlow() {
                       stroke="hsl(var(--chart-1))"
                       strokeWidth={2}
                       dot={false}
+                      isAnimationActive={false}
                     />
                     <Line
                       type="monotone"
@@ -241,6 +241,7 @@ export default function CashFlow() {
                       stroke="hsl(var(--chart-2))"
                       strokeWidth={2}
                       dot={false}
+                      isAnimationActive={false}
                     />
                     <Line
                       type="monotone"
@@ -249,6 +250,7 @@ export default function CashFlow() {
                       strokeWidth={3}
                       dot={false}
                       strokeDasharray="5 5"
+                      isAnimationActive={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -259,4 +261,4 @@ export default function CashFlow() {
       )}
     </div>
   );
-}
+});

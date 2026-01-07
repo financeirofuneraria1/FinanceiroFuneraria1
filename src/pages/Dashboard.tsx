@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +21,106 @@ interface MonthlyData {
   expenses: number;
 }
 
-export default function Dashboard() {
+const StatsCards = memo(({ totalRevenues, totalExpenses, balance, formatCurrency }: any) => (
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+    <Card className="border-l-4 border-l-success">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          Receitas do Mês
+        </CardTitle>
+        <TrendingUp className="h-5 w-5 text-success" />
+      </CardHeader>
+      <CardContent>
+        <p className="text-2xl font-bold text-foreground">{formatCurrency(totalRevenues)}</p>
+      </CardContent>
+    </Card>
+
+    <Card className="border-l-4 border-l-destructive">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          Despesas do Mês
+        </CardTitle>
+        <TrendingDown className="h-5 w-5 text-destructive" />
+      </CardHeader>
+      <CardContent>
+        <p className="text-2xl font-bold text-foreground">{formatCurrency(totalExpenses)}</p>
+      </CardContent>
+    </Card>
+
+    <Card className={`border-l-4 ${balance >= 0 ? 'border-l-success' : 'border-l-destructive'}`}>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          Saldo do Mês
+        </CardTitle>
+        <Wallet className={`h-5 w-5 ${balance >= 0 ? 'text-success' : 'text-destructive'}`} />
+      </CardHeader>
+      <CardContent>
+        <p className={`text-2xl font-bold ${balance >= 0 ? 'text-success' : 'text-destructive'}`}>
+          {formatCurrency(balance)}
+        </p>
+      </CardContent>
+    </Card>
+  </div>
+));
+StatsCards.displayName = 'StatsCards';
+
+const ChartSection = memo(({ monthlyData, formatCurrency }: any) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="text-lg">Evolução Mensal</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={monthlyData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(value) => `R$${(value / 1000).toFixed(0)}k`} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+              }}
+              formatter={(value: number) => [formatCurrency(value)]}
+            />
+            <Bar dataKey="revenues" fill="hsl(var(--chart-1))" name="Receitas" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="expenses" fill="hsl(var(--chart-2))" name="Despesas" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </CardContent>
+  </Card>
+));
+ChartSection.displayName = 'ChartSection';
+
+const TransactionItem = memo(({ transaction, formatCurrency }: any) => (
+  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+    <div className="flex items-center gap-3">
+      <div className={`p-2 rounded-full ${transaction.type === 'revenue' ? 'bg-success/10' : 'bg-destructive/10'}`}>
+        {transaction.type === 'revenue' ? (
+          <ArrowUpRight className="h-4 w-4 text-success" />
+        ) : (
+          <ArrowDownRight className="h-4 w-4 text-destructive" />
+        )}
+      </div>
+      <div>
+        <p className="font-medium text-sm text-foreground truncate max-w-[150px]">
+          {transaction.description}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {format(new Date(transaction.date), 'dd/MM/yyyy')}
+        </p>
+      </div>
+    </div>
+    <p className={`font-semibold ${transaction.type === 'revenue' ? 'text-success' : 'text-destructive'}`}>
+      {transaction.type === 'revenue' ? '+' : '-'}{formatCurrency(transaction.amount)}
+    </p>
+  </div>
+));
+TransactionItem.displayName = 'TransactionItem';
+
+export default memo(function Dashboard() {
   const { user } = useAuth();
   const [totalRevenues, setTotalRevenues] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
@@ -42,69 +141,43 @@ export default function Dashboard() {
     const monthEnd = endOfMonth(now).toISOString().split('T')[0];
 
     try {
-      // Fetch current month revenues
-      const { data: revenues } = await supabase
-        .from('revenues')
-        .select('amount')
-        .gte('date', monthStart)
-        .lte('date', monthEnd);
+      const [revenuesResult, expensesResult] = await Promise.all([
+        supabase.from('revenues').select('amount').gte('date', monthStart).lte('date', monthEnd),
+        supabase.from('expenses').select('amount').gte('date', monthStart).lte('date', monthEnd),
+      ]);
 
-      const revenueTotal = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+      const revenueTotal = revenuesResult.data?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+      const expenseTotal = expensesResult.data?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
       setTotalRevenues(revenueTotal);
-
-      // Fetch current month expenses
-      const { data: expenses } = await supabase
-        .from('expenses')
-        .select('amount')
-        .gte('date', monthStart)
-        .lte('date', monthEnd);
-
-      const expenseTotal = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
       setTotalExpenses(expenseTotal);
 
-      // Fetch recent transactions (last 5 of each type)
-      const { data: recentRevenues } = await supabase
-        .from('revenues')
-        .select('id, description, amount, date')
-        .order('date', { ascending: false })
-        .limit(5);
-
-      const { data: recentExpenses } = await supabase
-        .from('expenses')
-        .select('id, description, amount, date')
-        .order('date', { ascending: false })
-        .limit(5);
+      const [recentRevsResult, recentExpsResult] = await Promise.all([
+        supabase.from('revenues').select('id, description, amount, date').order('date', { ascending: false }).limit(5),
+        supabase.from('expenses').select('id, description, amount, date').order('date', { ascending: false }).limit(5),
+      ]);
 
       const combined: Transaction[] = [
-        ...(recentRevenues?.map(r => ({ ...r, amount: Number(r.amount), type: 'revenue' as const })) || []),
-        ...(recentExpenses?.map(e => ({ ...e, amount: Number(e.amount), type: 'expense' as const })) || []),
+        ...(recentRevsResult.data?.map(r => ({ ...r, amount: Number(r.amount), type: 'revenue' as const })) || []),
+        ...(recentExpsResult.data?.map(e => ({ ...e, amount: Number(e.amount), type: 'expense' as const })) || []),
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 8);
       
       setRecentTransactions(combined);
 
-      // Fetch last 6 months data for chart
       const monthlyDataArray: MonthlyData[] = [];
       for (let i = 5; i >= 0; i--) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const start = startOfMonth(date).toISOString().split('T')[0];
         const end = endOfMonth(date).toISOString().split('T')[0];
 
-        const { data: monthRevs } = await supabase
-          .from('revenues')
-          .select('amount')
-          .gte('date', start)
-          .lte('date', end);
-
-        const { data: monthExps } = await supabase
-          .from('expenses')
-          .select('amount')
-          .gte('date', start)
-          .lte('date', end);
+        const [monthRevs, monthExps] = await Promise.all([
+          supabase.from('revenues').select('amount').gte('date', start).lte('date', end),
+          supabase.from('expenses').select('amount').gte('date', start).lte('date', end),
+        ]);
 
         monthlyDataArray.push({
           month: format(date, 'MMM', { locale: ptBR }),
-          revenues: monthRevs?.reduce((sum, r) => sum + Number(r.amount), 0) || 0,
-          expenses: monthExps?.reduce((sum, e) => sum + Number(e.amount), 0) || 0,
+          revenues: monthRevs.data?.reduce((sum, r) => sum + Number(r.amount), 0) || 0,
+          expenses: monthExps.data?.reduce((sum, e) => sum + Number(e.amount), 0) || 0,
         });
       }
       setMonthlyData(monthlyDataArray);
@@ -118,12 +191,12 @@ export default function Dashboard() {
   const balance = totalRevenues - totalExpenses;
   const currentMonth = format(new Date(), 'MMMM yyyy', { locale: ptBR });
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = useMemo(() => (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -144,84 +217,16 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground capitalize">{currentMonth}</p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-        <Card className="border-l-4 border-l-success">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Receitas do Mês
-            </CardTitle>
-            <TrendingUp className="h-5 w-5 text-success" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(totalRevenues)}</p>
-          </CardContent>
-        </Card>
+      <StatsCards totalRevenues={totalRevenues} totalExpenses={totalExpenses} balance={balance} formatCurrency={formatCurrency} />
 
-        <Card className="border-l-4 border-l-destructive">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Despesas do Mês
-            </CardTitle>
-            <TrendingDown className="h-5 w-5 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(totalExpenses)}</p>
-          </CardContent>
-        </Card>
-
-        <Card className={`border-l-4 ${balance >= 0 ? 'border-l-success' : 'border-l-destructive'}`}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Saldo do Mês
-            </CardTitle>
-            <Wallet className={`h-5 w-5 ${balance >= 0 ? 'text-success' : 'text-destructive'}`} />
-          </CardHeader>
-          <CardContent>
-            <p className={`text-2xl font-bold ${balance >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {formatCurrency(balance)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts and Transactions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Evolução Mensal</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(value) => `R$${(value / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                    formatter={(value: number) => [formatCurrency(value)]}
-                  />
-                  <Bar dataKey="revenues" fill="hsl(var(--chart-1))" name="Receitas" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expenses" fill="hsl(var(--chart-2))" name="Despesas" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        <ChartSection monthlyData={monthlyData} formatCurrency={formatCurrency} />
 
-        {/* Recent Transactions */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Últimas Movimentações</CardTitle>
@@ -234,31 +239,7 @@ export default function Dashboard() {
                 </p>
               ) : (
                 recentTransactions.map((transaction) => (
-                  <div
-                    key={`${transaction.type}-${transaction.id}`}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-full ${transaction.type === 'revenue' ? 'bg-success/10' : 'bg-destructive/10'}`}>
-                        {transaction.type === 'revenue' ? (
-                          <ArrowUpRight className="h-4 w-4 text-success" />
-                        ) : (
-                          <ArrowDownRight className="h-4 w-4 text-destructive" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm text-foreground truncate max-w-[150px]">
-                          {transaction.description}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(transaction.date), 'dd/MM/yyyy')}
-                        </p>
-                      </div>
-                    </div>
-                    <p className={`font-semibold ${transaction.type === 'revenue' ? 'text-success' : 'text-destructive'}`}>
-                      {transaction.type === 'revenue' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                    </p>
-                  </div>
+                  <TransactionItem key={`${transaction.type}-${transaction.id}`} transaction={transaction} formatCurrency={formatCurrency} />
                 ))
               )}
             </div>
@@ -267,4 +248,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-}
+});
