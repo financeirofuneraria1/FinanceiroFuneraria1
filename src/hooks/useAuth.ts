@@ -24,8 +24,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+    let initialLoadDone = false;
 
-    const initAuth = async () => {
+    // Primeiro recupera a sessão armazenada
+    const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
 
@@ -41,19 +43,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
           }
         }
+
+        initialLoadDone = true;
+        if (isMounted) {
+          setLoading(false);
+        }
       } catch (error) {
         console.error('Auth init error:', error);
-      } finally {
+        initialLoadDone = true;
         if (isMounted) {
           setLoading(false);
         }
       }
     };
 
-    initAuth();
+    getInitialSession();
+
+    // Escuta mudanças (login/logout) APÓS a carga inicial
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!isMounted || !initialLoadDone) return;
+
+        if (session?.user) {
+          const userRole = await fetchUserRole(session.user.id);
+          if (isMounted) {
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              role: userRole,
+            });
+          }
+        } else {
+          if (isMounted) {
+            setUser(null);
+          }
+        }
+      }
+    );
 
     return () => {
       isMounted = false;
+      subscription?.unsubscribe();
     };
   }, []);
 
