@@ -10,6 +10,7 @@ import DashboardLayout from "./components/layout/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Revenues from "./pages/Revenues";
 import Expenses from "./pages/Expenses";
+import Pendencies from "./pages/Pendencies";
 import CashFlow from "./pages/CashFlow";
 import Reports from "./pages/Reports";
 import Companies from "./pages/Companies";
@@ -45,6 +46,7 @@ const App = () => (
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/revenues" element={<Revenues />} />
                 <Route path="/expenses" element={<Expenses />} />
+                <Route path="/pendencies" element={<Pendencies />} />
                 <Route path="/cash-flow" element={<CashFlow />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/companies" element={<Companies />} />

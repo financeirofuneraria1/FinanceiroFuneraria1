@@ -1,8 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompany } from '@/hooks/useCompany';
+import { usePendencies } from '@/hooks/usePendencies';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   LayoutDashboard,
   TrendingUp,
@@ -13,6 +15,7 @@ import {
   Menu,
   X,
   Building2,
+  AlertCircle,
   ChevronDown,
 } from 'lucide-react';
 import { useState, memo } from 'react';
@@ -28,6 +31,7 @@ const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/revenues', icon: TrendingUp, label: 'Receitas' },
   { to: '/expenses', icon: TrendingDown, label: 'Despesas' },
+  { to: '/pendencies', icon: AlertCircle, label: 'Pendências' },
   { to: '/cash-flow', icon: ArrowLeftRight, label: 'Fluxo de Caixa' },
   { to: '/reports', icon: FileText, label: 'Relatórios' },
   { to: '/companies', icon: Building2, label: 'Empresas' },
@@ -89,7 +93,7 @@ const CompanySelector = memo(() => {
 });
 CompanySelector.displayName = 'CompanySelector';
 
-const NavMenu = memo(({ onLinkClick }: { onLinkClick: () => void }) => (
+const NavMenu = memo(({ onLinkClick, pendencyCount }: { onLinkClick: () => void; pendencyCount: number }) => (
   <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
     {navItems.map((item) => (
       <NavLink
@@ -98,15 +102,20 @@ const NavMenu = memo(({ onLinkClick }: { onLinkClick: () => void }) => (
         onClick={onLinkClick}
         className={({ isActive }) =>
           cn(
-            'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors',
+            'flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors',
             isActive
               ? 'bg-sidebar-accent text-sidebar-accent-foreground'
               : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
           )
         }
       >
-        <item.icon className="w-5 h-5 flex-shrink-0" />
-        <span>{item.label}</span>
+        <div className="flex items-center gap-3">
+          <item.icon className="w-5 h-5 flex-shrink-0" />
+          <span>{item.label}</span>
+        </div>
+        {item.to === '/pendencies' && pendencyCount > 0 && (
+          <Badge variant="destructive" className="ml-auto">{pendencyCount}</Badge>
+        )}
       </NavLink>
     ))}
   </nav>
@@ -139,6 +148,8 @@ SidebarFooter.displayName = 'SidebarFooter';
 
 export default memo(function Sidebar() {
   const { signOut, user } = useAuth();
+  const { selectedCompany } = useCompany();
+  const { stats } = usePendencies(selectedCompany?.id);
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -153,7 +164,7 @@ export default memo(function Sidebar() {
     <div className="flex flex-col h-full">
       <SidebarHeader />
       <CompanySelector />
-      <NavMenu onLinkClick={handleLinkClick} />
+      <NavMenu onLinkClick={handleLinkClick} pendencyCount={stats.total} />
       <SidebarFooter user={user} onSignOut={handleSignOut} />
     </div>
   );

@@ -2,8 +2,11 @@ import { useState, useEffect, memo, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompany } from '@/hooks/useCompany';
+import { usePendencies } from '@/hooks/usePendencies';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight, AlertTriangle } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
@@ -124,6 +127,7 @@ TransactionItem.displayName = 'TransactionItem';
 export default memo(function Dashboard() {
   const { user } = useAuth();
   const { selectedCompany, loading: companyLoading } = useCompany();
+  const { stats: pendencyStats } = usePendencies(selectedCompany?.id);
   const [totalRevenues, setTotalRevenues] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
@@ -263,6 +267,22 @@ export default memo(function Dashboard() {
         <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground capitalize">{selectedCompany.name} • {currentMonth}</p>
       </div>
+
+      {/* Alerta de Pendências Vencidas */}
+      {pendencyStats.overdue > 0 && (
+        <Alert className="border-destructive bg-destructive/5">
+          <AlertTriangle className="h-4 w-4 text-destructive" />
+          <AlertDescription className="ml-2">
+            <span className="font-semibold text-destructive">
+              {pendencyStats.overdue} {pendencyStats.overdue === 1 ? 'item vencido' : 'itens vencidos'}!
+            </span>
+            {' '}Você tem {pendencyStats.revenuePending} receita(s) e {pendencyStats.expensePending} despesa(s) pendentes.
+            <Button variant="link" className="h-auto p-0 ml-2 text-destructive hover:text-destructive" asChild>
+              <a href="/pendencies">Ver pendências →</a>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <StatsCards totalRevenues={totalRevenues} totalExpenses={totalExpenses} balance={balance} formatCurrency={formatCurrency} />
 

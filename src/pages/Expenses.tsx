@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, TrendingDown, Loader2, Lock } from 'lucide-react';
 import { format } from 'date-fns';
@@ -20,6 +21,7 @@ interface Expense {
   date: string;
   notes: string | null;
   category_id: string | null;
+  status: 'pendente' | 'pago' | 'cancelado';
   categories?: { name: string } | null;
 }
 
@@ -29,7 +31,7 @@ interface Category {
 }
 
 export default function Expenses() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const { selectedCompany } = useCompany();
   const { canEdit } = usePermissions();
   const { toast } = useToast();
@@ -46,6 +48,7 @@ export default function Expenses() {
     date: new Date().toISOString().split('T')[0],
     category_id: '',
     notes: '',
+    status: 'pendente',
   });
 
   useEffect(() => {
@@ -89,6 +92,7 @@ export default function Expenses() {
       date: new Date().toISOString().split('T')[0],
       category_id: '',
       notes: '',
+      status: 'pendente',
     });
     setEditingExpense(null);
   };
@@ -101,6 +105,7 @@ export default function Expenses() {
       date: expense.date,
       category_id: expense.category_id || '',
       notes: expense.notes || '',
+      status: expense.status || 'pendente',
     });
     setDialogOpen(true);
   };
@@ -117,6 +122,7 @@ export default function Expenses() {
       date: formData.date,
       category_id: formData.category_id || null,
       notes: formData.notes || null,
+      status: formData.status,
       user_id: user.id,
       company_id: selectedCompany.id,
     };
@@ -269,6 +275,22 @@ export default function Expenses() {
                   placeholder="Observações adicionais (opcional)"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => setFormData({ ...formData, status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="pago">Pago</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button type="submit" className="w-full" disabled={saving}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {editingExpense ? 'Atualizar' : 'Adicionar'} Despesa
@@ -332,6 +354,15 @@ export default function Expenses() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
+                    <Badge variant={
+                      expense.status === 'pago' ? 'default' :
+                      expense.status === 'cancelado' ? 'secondary' :
+                      'outline'
+                    }>
+                      {expense.status === 'pago' ? '✓ Pago' :
+                       expense.status === 'cancelado' ? '✗ Cancelado' :
+                       '⏳ Pendente'}
+                    </Badge>
                     <p className="font-bold text-destructive whitespace-nowrap">
                       {formatCurrency(expense.amount)}
                     </p>
