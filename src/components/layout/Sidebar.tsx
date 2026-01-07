@@ -38,7 +38,7 @@ export default function Sidebar() {
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
-            <img src="/logo.svg" alt="Funerária Imbituba" className="w-8 h-8 object-contain" />
+            <img src="/logo.png" alt="Funerária Imbituba" className="w-8 h-8 object-contain" />
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-sm font-bold text-sidebar-foreground truncate">
