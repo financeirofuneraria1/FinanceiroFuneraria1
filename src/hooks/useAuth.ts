@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, createElement } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode, createElement } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface User {
@@ -21,15 +21,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const firstLoadRef = useRef(true);
 
   useEffect(() => {
     let isMounted = true;
 
-    // Apenas usa onAuthStateChange como fonte única da verdade
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
 
+        // Carrega o usuário
         if (session?.user) {
           const userRole = await fetchUserRole(session.user.id);
           if (isMounted) {
@@ -44,10 +45,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(null);
           }
         }
-        
-        // Sempre desativa loading após qualquer evento
-        if (isMounted) {
-          setLoading(false);
+
+        // Desativa loading apenas na primeira vez
+        if (firstLoadRef.current) {
+          firstLoadRef.current = false;
+          if (isMounted) {
+            setLoading(false);
+          }
         }
       }
     );
