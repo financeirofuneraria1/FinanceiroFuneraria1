@@ -40,10 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               role: userRole,
             });
           }
+        } else {
+          if (isMounted) {
+            setLoading(false);
+          }
         }
       } catch (error) {
         console.error('Error getting session:', error);
-      } finally {
         if (isMounted) {
           setLoading(false);
         }
@@ -84,20 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserRole = async (userId: string): Promise<'admin' | 'user'> => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('user_profiles')
         .select('role')
         .eq('id', userId)
         .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching role:', error);
-        return 'user';
-      }
-
       return (data?.role as 'admin' | 'user') || 'user';
     } catch (error) {
-      console.error('Error in fetchUserRole:', error);
+      console.error('Error fetching user role:', error);
       return 'user';
     }
   };
