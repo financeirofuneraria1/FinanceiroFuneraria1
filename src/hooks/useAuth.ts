@@ -27,23 +27,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initAuth = async () => {
       try {
-        const { data } = await supabase.auth.getSession();
+        // Primeiro tenta recuperar a sessão armazenada
+        const { data: { session } } = await supabase.auth.getSession();
         
         if (!isMounted) return;
 
-        if (data.session?.user) {
-          const userRole = await fetchUserRole(data.session.user.id);
+        if (session?.user) {
+          const userRole = await fetchUserRole(session.user.id);
           if (isMounted) {
             setUser({
-              id: data.session.user.id,
-              email: data.session.user.email || '',
+              id: session.user.id,
+              email: session.user.email || '',
               role: userRole,
             });
           }
-        } else {
-          if (isMounted) {
-            setLoading(false);
-          }
+        }
+        
+        if (isMounted) {
+          setLoading(false);
         }
       } catch (error) {
         console.error('Error getting session:', error);
@@ -55,7 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initAuth();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
+    // Escuta mudanças na autenticação (login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
 
@@ -73,15 +75,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(null);
           }
         }
-        if (isMounted) {
-          setLoading(false);
-        }
       }
     );
 
     return () => {
       isMounted = false;
-      authListener?.subscription?.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
