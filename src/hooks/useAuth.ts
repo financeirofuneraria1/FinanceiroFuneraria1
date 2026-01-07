@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, ReactNode, createElement } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, createElement } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface User {
@@ -21,45 +21,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
     let isMounted = true;
 
-    const initAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!isMounted) return;
-
-        if (session?.user) {
-          const userRole = await fetchUserRole(session.user.id);
-          if (isMounted) {
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              role: userRole,
-            });
-          }
-        }
-        
-        if (isMounted) {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error getting session:', error);
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    initAuth();
-
-    // Escuta mudanças na autenticação (login/logout)
+    // Apenas usa onAuthStateChange como fonte única da verdade
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
@@ -77,6 +43,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (isMounted) {
             setUser(null);
           }
+        }
+        
+        // Sempre desativa loading após qualquer evento
+        if (isMounted) {
+          setLoading(false);
         }
       }
     );
