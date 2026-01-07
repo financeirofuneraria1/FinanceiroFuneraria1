@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, createElement } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -33,20 +33,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Carregar empresas do usuário
-  useEffect(() => {
-    if (user) {
-      fetchCompanies();
-    }
-  }, [user]);
-
-  // Salvar empresa selecionada no localStorage
-  useEffect(() => {
-    if (selectedCompany) {
-      localStorage.setItem('selectedCompanyId', selectedCompany.id);
-    }
-  }, [selectedCompany]);
-
   const fetchCompanies = async () => {
     if (!user) return;
 
@@ -64,7 +50,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
       setCompanies(data || []);
 
-      // Restaurar empresa selecionada do localStorage
       const savedCompanyId = localStorage.getItem('selectedCompanyId');
       if (savedCompanyId && data) {
         const saved = data.find((c) => c.id === savedCompanyId);
@@ -120,7 +105,19 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     await fetchCompanies();
   };
 
-  const contextValue: CompanyContextType = {
+  useEffect(() => {
+    if (user) {
+      fetchCompanies();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (selectedCompany) {
+      localStorage.setItem('selectedCompanyId', selectedCompany.id);
+    }
+  }, [selectedCompany]);
+
+  const value: CompanyContextType = {
     companies,
     selectedCompany,
     setSelectedCompany,
@@ -130,10 +127,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     refreshCompanies,
   };
 
-  return (
-    <CompanyContext.Provider value={contextValue}>
-      {children}
-    </CompanyContext.Provider>
+  return createElement(
+    CompanyContext.Provider,
+    { value },
+    children
   );
 }
 
