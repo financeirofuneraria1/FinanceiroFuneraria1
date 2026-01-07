@@ -33,11 +33,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (data.session?.user) {
           const userRole = await fetchUserRole(data.session.user.id);
-          setUser({
-            id: data.session.user.id,
-            email: data.session.user.email || '',
-            role: userRole,
-          });
+          if (isMounted) {
+            setUser({
+              id: data.session.user.id,
+              email: data.session.user.email || '',
+              role: userRole,
+            });
+          }
         }
       } catch (error) {
         console.error('Error getting session:', error);
@@ -56,15 +58,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           const userRole = await fetchUserRole(session.user.id);
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            role: userRole,
-          });
+          if (isMounted) {
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              role: userRole,
+            });
+          }
         } else {
-          setUser(null);
+          if (isMounted) {
+            setUser(null);
+          }
         }
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     );
 
@@ -76,27 +84,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserRole = async (userId: string): Promise<'admin' | 'user'> => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('user_profiles')
         .select('role')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (!data) {
-        // Se não existe profile, criar um
-        await supabase.rpc('init_user_profile');
+      if (error) {
+        console.error('Error fetching role:', error);
         return 'user';
       }
 
-      return (data.role as 'admin' | 'user') || 'user';
+      return (data?.role as 'admin' | 'user') || 'user';
     } catch (error) {
-      console.error('Error fetching user role:', error);
-      // Tentar criar profile se não existir
-      try {
-        await supabase.rpc('init_user_profile');
-      } catch (rpcError) {
-        console.error('Error initializing profile:', rpcError);
-      }
+      console.error('Error in fetchUserRole:', error);
       return 'user';
     }
   };
