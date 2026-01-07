@@ -120,18 +120,18 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     await fetchCompanies();
   };
 
+  const contextValue: CompanyContextType = {
+    companies,
+    selectedCompany,
+    setSelectedCompany,
+    loading,
+    error,
+    createCompany,
+    refreshCompanies,
+  };
+
   return (
-    <CompanyContext.Provider
-      value={{
-        companies,
-        selectedCompany,
-        setSelectedCompany,
-        loading,
-        error,
-        createCompany,
-        refreshCompanies,
-      }}
-    >
+    <CompanyContext.Provider value={contextValue}>
       {children}
     </CompanyContext.Provider>
   );
