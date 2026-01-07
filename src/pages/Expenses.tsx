@@ -28,7 +28,7 @@ interface Category {
 }
 
 export default function Expenses() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { selectedCompany } = useCompany();
   const { toast } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -335,14 +335,17 @@ export default function Expenses() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(expense.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(expense.id)}
+                          title="Apenas administradores podem deletar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
