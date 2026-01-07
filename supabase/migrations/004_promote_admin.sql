@@ -23,8 +23,8 @@ CREATE POLICY "admins_full_access_profiles" ON user_profiles
 -- COMPANIES
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "users_read_own_companies" ON companies
-  FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "users_read_all_companies" ON companies
+  FOR SELECT USING (true);
 
 CREATE POLICY "admins_edit_companies" ON companies
   FOR INSERT, UPDATE, DELETE USING (
@@ -34,8 +34,8 @@ CREATE POLICY "admins_edit_companies" ON companies
 -- REVENUES
 ALTER TABLE revenues ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "users_read_revenues" ON revenues
-  FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "users_read_all_revenues" ON revenues
+  FOR SELECT USING (true);
 
 CREATE POLICY "admins_edit_revenues" ON revenues
   FOR INSERT, UPDATE, DELETE USING (
@@ -45,8 +45,8 @@ CREATE POLICY "admins_edit_revenues" ON revenues
 -- EXPENSES
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "users_read_expenses" ON expenses
-  FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "users_read_all_expenses" ON expenses
+  FOR SELECT USING (true);
 
 CREATE POLICY "admins_edit_expenses" ON expenses
   FOR INSERT, UPDATE, DELETE USING (
