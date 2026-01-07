@@ -54,24 +54,16 @@ CREATE POLICY "Expenses: Only admins can delete expenses"
   );
 
 -- ============================================
--- CREATE FUNCTION TO AUTO-CREATE PROFILE ON SIGNUP
+-- CREATE FUNCTION TO INITIALIZE USER PROFILE
 -- ============================================
-CREATE OR REPLACE FUNCTION public.create_user_profile()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.init_user_profile()
+RETURNS void AS $$
 BEGIN
   INSERT INTO user_profiles (id, role)
-  VALUES (NEW.id, 'user')
+  VALUES (auth.uid(), 'user')
   ON CONFLICT DO NOTHING;
-  
-  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
--- CREATE TRIGGER
-DROP TRIGGER IF EXISTS on_auth_user_profile_created ON auth.users;
-CREATE TRIGGER on_auth_user_profile_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.create_user_profile();
 
 -- ============================================
 -- POPULATE EXISTING USERS AS NON-ADMIN

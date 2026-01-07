@@ -27,6 +27,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data } = await supabase.auth.getSession();
         if (data.session?.user) {
+          // Initialize profile para novo usuário
+          try {
+            await supabase.rpc('init_user_profile');
+          } catch (error) {
+            console.error('Error initializing profile:', error);
+          }
+          
           const userRole = await fetchUserRole(data.session.user.id);
           setUser({
             id: data.session.user.id,
@@ -45,6 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
+        // Initialize profile para novo usuário
+        try {
+          await supabase.rpc('init_user_profile');
+        } catch (error) {
+          console.error('Error initializing profile:', error);
+        }
+        
         const userRole = await fetchUserRole(session.user.id);
         setUser({
           id: session.user.id,
@@ -83,9 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
         options: {
-          data: {
-            name,
-          },
+          data: { name },
         },
       });
 
