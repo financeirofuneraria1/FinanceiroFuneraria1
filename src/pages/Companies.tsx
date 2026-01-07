@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { useCompany } from '@/hooks/useCompany';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Pencil, Trash2, Building2, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building2, Loader2, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Companies() {
   const { companies, selectedCompany, setSelectedCompany, createCompany } = useCompany();
+  const { canEdit } = usePermissions();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -104,18 +106,19 @@ export default function Companies() {
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Empresas</h1>
           <p className="text-muted-foreground">Gerencie suas empresas</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nova Empresa
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Cadastrar Nova Empresa</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        {canEdit ? (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Nova Empresa
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Cadastrar Nova Empresa</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome da Empresa *</Label>
                 <Input
@@ -180,8 +183,14 @@ export default function Companies() {
                 Cadastrar Empresa
               </Button>
             </form>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        ) : (
+          <Button disabled className="gap-2">
+            <Lock className="h-4 w-4" />
+            Apenas admins podem criar
+          </Button>
+        )}
       </div>
 
       {/* Companies Grid */}
@@ -229,18 +238,20 @@ export default function Companies() {
                 </div>
               )}
               <div className="flex gap-2 pt-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="flex-1 text-destructive hover:text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteCompany(company.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Deletar
-                </Button>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1 text-destructive hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCompany(company.id);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Deletar
+                  </Button>
+                )}
               </div>
               {selectedCompany?.id === company.id && (
                 <div className="text-center text-xs font-medium text-primary">

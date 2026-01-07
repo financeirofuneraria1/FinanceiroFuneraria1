@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompany } from '@/hooks/useCompany';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Pencil, Trash2, TrendingDown, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, TrendingDown, Loader2, Lock } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Expense {
@@ -30,6 +31,7 @@ interface Category {
 export default function Expenses() {
   const { user, isAdmin } = useAuth();
   const { selectedCompany } = useCompany();
+  const { canEdit } = usePermissions();
   const { toast } = useToast();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -192,18 +194,19 @@ export default function Expenses() {
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Despesas</h1>
           <p className="text-muted-foreground">{selectedCompany.name}</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nova Despesa
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingExpense ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        {canEdit ? (
+          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Nova Despesa
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingExpense ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="description">Descrição</Label>
                 <Input
@@ -272,7 +275,13 @@ export default function Expenses() {
               </Button>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        ) : (
+          <Button disabled className="gap-2">
+            <Lock className="h-4 w-4" />
+            Apenas admins podem criar
+          </Button>
+        )}
       </div>
 
       {/* Total Card */}
@@ -332,16 +341,18 @@ export default function Expenses() {
                         size="icon"
                         className="h-8 w-8"
                         onClick={() => openEditDialog(expense)}
+                        disabled={!canEdit}
+                        title={canEdit ? "Editar despesa" : "Apenas administradores podem editar"}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      {isAdmin && (
+                      {canEdit && (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive"
                           onClick={() => handleDelete(expense.id)}
-                          title="Apenas administradores podem deletar"
+                          title="Deletar despesa"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
