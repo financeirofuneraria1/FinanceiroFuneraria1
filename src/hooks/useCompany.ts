@@ -27,14 +27,31 @@ interface CompanyContextType {
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchCompanies();
+    } else if (!authLoading && !user) {
+      setLoading(false);
+    }
+  }, [user, authLoading]);
+
+  useEffect(() => {
+    if (selectedCompany) {
+      localStorage.setItem('selectedCompanyId', selectedCompany.id);
+    }
+  }, [selectedCompany]);
+
   const fetchCompanies = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -104,18 +121,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const refreshCompanies = async () => {
     await fetchCompanies();
   };
-
-  useEffect(() => {
-    if (user) {
-      fetchCompanies();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (selectedCompany) {
-      localStorage.setItem('selectedCompanyId', selectedCompany.id);
-    }
-  }, [selectedCompany]);
 
   const value: CompanyContextType = {
     companies,
