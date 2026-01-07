@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, ReactNode, createElement } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, createElement } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface User {
@@ -21,51 +21,39 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     let isMounted = true;
-    let hasSetUser = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+
         if (!isMounted) return;
 
-        // Só atualiza se houver mudança real
-        const newUser = session?.user ? {
-          id: session.user.id,
-          email: session.user.email || '',
-          role: await fetchUserRole(session.user.id),
-        } : null;
-
-        if (!hasSetUser) {
-          hasSetUser = true;
-          setUser(newUser);
-          
-          // Garante que loading seja desativado após 5 segundos no máximo
-          loadingTimeoutRef.current = setTimeout(() => {
-            if (isMounted) setLoading(false);
-          }, 5000);
-          
-          // Desativa loading imediatamente quando há sessão
-          if (session?.user || !session) {
-            if (isMounted) {
-              setLoading(false);
-            }
-            if (loadingTimeoutRef.current) {
-              clearTimeout(loadingTimeoutRef.current);
-            }
+        if (session?.user) {
+          const userRole = await fetchUserRole(session.user.id);
+          if (isMounted) {
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              role: userRole,
+            });
           }
         }
+      } catch (error) {
+        console.error('Auth init error:', error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-    );
+    };
+
+    initAuth();
 
     return () => {
       isMounted = false;
-      subscription?.unsubscribe();
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-      }
     };
   }, []);
 
