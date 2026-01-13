@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompany } from '@/hooks/useCompany';
+import { useAutoSaldoAnterior } from '@/hooks/useAutoSaldoAnterior';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Trash2, Edit2, Plus, Loader2 } from 'lucide-react';
+import { Trash2, Edit2, Plus, Loader2, Zap } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -23,10 +24,12 @@ interface Transaction {
 export default function TransactionEdit() {
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
+  const { generateSaldoAnterior } = useAutoSaldoAnterior();
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [revenues, setRevenues] = useState<Transaction[]>([]);
   const [expenses, setExpenses] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generatingAutoSaldo, setGeneratingAutoSaldo] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<Transaction>>({});
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -168,6 +171,22 @@ export default function TransactionEdit() {
     }).format(value);
   };
 
+  const handleGenerateAutoSaldo = async () => {
+    if (!selectedCompany || !confirm('Deseja gerar saldos anteriores automaticamente para os próximos meses?')) return;
+
+    setGeneratingAutoSaldo(true);
+    const result = await generateSaldoAnterior(selectedCompany.id, selectedMonth);
+    
+    if (result.success) {
+      alert('✓ Saldos anteriores gerados com sucesso!');
+      fetchTransactions();
+    } else {
+      alert('✗ Erro ao gerar saldos anteriores');
+    }
+    
+    setGeneratingAutoSaldo(false);
+  };
+
   if (!selectedCompany) {
     return (
       <div className="text-center py-12">
@@ -184,7 +203,7 @@ export default function TransactionEdit() {
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Editar Lançamentos</h1>
           <p className="text-muted-foreground">{selectedCompany.name}</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-wrap">
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Selecione o mês" />
@@ -197,6 +216,20 @@ export default function TransactionEdit() {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            onClick={handleGenerateAutoSaldo}
+            disabled={generatingAutoSaldo}
+            variant="outline"
+            className="gap-2"
+            title="Gera automaticamente 'Saldo anterior' para os próximos meses"
+          >
+            {generatingAutoSaldo ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4" />
+            )}
+            Auto Saldo
+          </Button>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogTrigger asChild>
               <Button className="gap-2">
