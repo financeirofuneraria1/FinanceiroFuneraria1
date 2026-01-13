@@ -35,6 +35,7 @@ const navItems = [
   { to: '/cash-flow', icon: ArrowLeftRight, label: 'Fluxo de Caixa' },
   { to: '/reports', icon: FileText, label: 'Relatórios' },
   { to: '/companies', icon: Building2, label: 'Empresas' },
+  { to: '/editar-lancamentos', icon: FileText, label: 'Editar Lançamentos' },
 ];
 
 const SidebarHeader = memo(() => (

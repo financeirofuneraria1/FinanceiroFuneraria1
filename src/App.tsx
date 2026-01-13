@@ -15,6 +15,7 @@ import Pendencies from "./pages/Pendencies";
 import CashFlow from "./pages/CashFlow";
 import Reports from "./pages/Reports";
 import Companies from "./pages/Companies";
+import TransactionEdit from "./pages/TransactionEdit";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -51,6 +52,7 @@ const App = () => (
                 <Route path="/cash-flow" element={<CashFlow />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/companies" element={<Companies />} />
+                <Route path="/editar-lancamentos" element={<TransactionEdit />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
