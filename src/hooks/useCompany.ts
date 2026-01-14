@@ -1,23 +1,23 @@
-import { createContext, useContext, useState, useEffect, ReactNode, createElement } from 'react';
+import React, { createContext, useState, useEffect, useContext, ReactNode, createElement } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
-export interface Company {
+interface Company {
   id: string;
   name: string;
-  cnpj: string;
+  cnpj?: string;
   phone?: string;
   email?: string;
   address?: string;
   city?: string;
-  user_id: string;
-  created_at: string;
+  user_id?: string;
+  created_at?: string;
 }
 
 interface CompanyContextType {
   companies: Company[];
   selectedCompany: Company | null;
-  setSelectedCompany: (company: Company) => void;
+  setSelectedCompany: (c: Company | null) => void;
   loading: boolean;
   error: string | null;
   createCompany: (data: Omit<Company, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
@@ -67,15 +67,23 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       setCompanies(data || []);
 
       const savedCompanyId = localStorage.getItem('selectedCompanyId');
-      if (savedCompanyId && data) {
-        const saved = data.find((c) => c.id === savedCompanyId);
-        if (saved) {
-          setSelectedCompany(saved);
-        } else if (data.length > 0) {
+
+      const nextSelected = savedCompanyId
+        ? data?.find((c) => c.id === savedCompanyId) || null
+        : data && data.length > 0
+        ? data[0]
+        : null;
+
+      // Só atualizar selectedCompany se for realmente diferente
+      if (nextSelected) {
+        if (!selectedCompany || selectedCompany.id !== nextSelected.id) {
+          setSelectedCompany(nextSelected);
+        }
+      } else {
+        // Se não existe nextSelected e ainda não temos selectedCompany, manter como null
+        if (!selectedCompany && data && data.length > 0) {
           setSelectedCompany(data[0]);
         }
-      } else if (data && data.length > 0) {
-        setSelectedCompany(data[0]);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar empresas';
@@ -108,8 +116,12 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
       if (err) throw err;
 
-      setCompanies([newCompany, ...companies]);
-      setSelectedCompany(newCompany);
+      setCompanies((prev) => [newCompany, ...prev]);
+
+      // Atualiza selectedCompany apenas se for diferente
+      if (!selectedCompany || selectedCompany.id !== newCompany.id) {
+        setSelectedCompany(newCompany);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao criar empresa';
       setError(message);
