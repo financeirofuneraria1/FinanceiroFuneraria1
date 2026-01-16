@@ -74,12 +74,26 @@ const ChartSection = memo(({ monthlyData, formatCurrency }: any) => (
       <CardTitle className="text-lg">Evolução Mensal</CardTitle>
     </CardHeader>
     <CardContent>
-      <div className="h-64">
+      <div className="h-64 md:h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={monthlyData}>
+          <BarChart 
+            data={monthlyData}
+            margin={{ top: 20, right: 20, left: -20, bottom: 0 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(value) => `R$${(value / 1000).toFixed(0)}k`} />
+            <XAxis 
+              dataKey="month" 
+              stroke="hsl(var(--muted-foreground))" 
+              fontSize={12}
+              tick={{ fontSize: 11 }}
+            />
+            <YAxis 
+              stroke="hsl(var(--muted-foreground))" 
+              fontSize={12}
+              tickFormatter={(value) => `R$${(value / 1000).toFixed(0)}k`}
+              tick={{ fontSize: 11 }}
+              width={35}
+            />
             <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--card))',
@@ -87,6 +101,7 @@ const ChartSection = memo(({ monthlyData, formatCurrency }: any) => (
                 borderRadius: '8px',
               }}
               formatter={(value: number) => [formatCurrency(value)]}
+              wrapperStyle={{ outline: 'none' }}
             />
             <Bar dataKey="revenues" fill="hsl(var(--chart-1))" name="Receitas" radius={[4, 4, 0, 0]} />
             <Bar dataKey="expenses" fill="hsl(var(--chart-2))" name="Despesas" radius={[4, 4, 0, 0]} />
@@ -301,7 +316,7 @@ export default memo(function Dashboard() {
             <CardTitle className="text-lg">Últimas Movimentações</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin">
+            <div className="space-y-3 max-h-72 overflow-y-auto scrollbar-thin pr-2">
               {recentTransactions.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
                   Nenhuma movimentação registrada

@@ -174,8 +174,9 @@ export default memo(function Sidebar() {
     <>
       {/* Mobile menu button */}
       <button
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-primary text-primary-foreground shadow-lg"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-primary text-primary-foreground shadow-lg will-change-transform"
         onClick={() => setMobileOpen(!mobileOpen)}
+        aria-label="Toggle menu"
       >
         {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
@@ -183,7 +184,7 @@ export default memo(function Sidebar() {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          className="lg:hidden fixed inset-0 bg-black/50 z-40 will-change-opacity"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -191,9 +192,9 @@ export default memo(function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed lg:static inset-y-0 left-0 z-40 w-64 bg-sidebar transform transition-transform duration-300',
-          'lg:translate-x-0',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+          'fixed lg:static inset-y-0 left-0 z-40 w-64 bg-sidebar will-change-transform',
+          'lg:translate-x-0 lg:transition-none',
+          mobileOpen ? 'translate-x-0 transition-transform duration-300' : '-translate-x-full transition-transform duration-300'
         )}
       >
         <SidebarContent />

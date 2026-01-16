@@ -77,7 +77,7 @@ const PieChartCard = memo(({ title, icon: Icon, data, COLORS, formatCurrency }: 
       {data.length === 0 ? (
         <p className="text-center text-muted-foreground py-8">Nenhum dado no período</p>
       ) : (
-        <div className="h-64">
+        <div className="h-72 md:h-96">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -86,8 +86,9 @@ const PieChartCard = memo(({ title, icon: Icon, data, COLORS, formatCurrency }: 
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                outerRadius={80}
-                label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                outerRadius={60}
+                innerRadius={0}
+                label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
                 isAnimationActive={false}
               >
                 {data.map((_, index) => (
@@ -101,6 +102,7 @@ const PieChartCard = memo(({ title, icon: Icon, data, COLORS, formatCurrency }: 
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
                 }}
+                wrapperStyle={{ outline: 'none' }}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -333,15 +335,25 @@ export default memo(function Reports() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
+              <div className="h-72 md:h-96">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyComparison}>
+                  <BarChart 
+                    data={monthlyComparison}
+                    margin={{ top: 20, right: 20, left: -20, bottom: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <XAxis 
+                      dataKey="month" 
+                      stroke="hsl(var(--muted-foreground))" 
+                      fontSize={12}
+                      tick={{ fontSize: 11 }}
+                    />
                     <YAxis
                       stroke="hsl(var(--muted-foreground))"
                       fontSize={12}
                       tickFormatter={(value) => `R$${(value / 1000).toFixed(0)}k`}
+                      tick={{ fontSize: 11 }}
+                      width={40}
                     />
                     <Tooltip
                       formatter={(value: number, name: string) => [
@@ -353,6 +365,7 @@ export default memo(function Reports() {
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
                       }}
+                      wrapperStyle={{ outline: 'none' }}
                     />
                     <Legend formatter={(value) => (value === 'revenues' ? 'Receitas' : 'Despesas')} />
                     <Bar dataKey="revenues" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} isAnimationActive={false} />
