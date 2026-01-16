@@ -37,6 +37,17 @@ export default function Companies() {
       return;
     }
 
+    // Validar CNPJ (apenas dígitos e com 14 caracteres)
+    const cnpjClean = formData.cnpj.replace(/\D/g, '');
+    if (cnpjClean.length !== 14) {
+      toast({
+        title: 'Erro',
+        description: 'CNPJ deve conter 14 dígitos',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {

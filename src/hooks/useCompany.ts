@@ -67,23 +67,18 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       setCompanies(data || []);
 
       const savedCompanyId = localStorage.getItem('selectedCompanyId');
-
-      const nextSelected = savedCompanyId
-        ? data?.find((c) => c.id === savedCompanyId) || null
+      const companyToSelect = savedCompanyId
+        ? data?.find((c) => c.id === savedCompanyId)
         : data && data.length > 0
         ? data[0]
         : null;
 
-      // Só atualizar selectedCompany se for realmente diferente
-      if (nextSelected) {
-        if (!selectedCompany || selectedCompany.id !== nextSelected.id) {
-          setSelectedCompany(nextSelected);
-        }
-      } else {
-        // Se não existe nextSelected e ainda não temos selectedCompany, manter como null
-        if (!selectedCompany && data && data.length > 0) {
-          setSelectedCompany(data[0]);
-        }
+      // Sempre atualizar se houver empresa para selecionar
+      if (companyToSelect) {
+        setSelectedCompany(companyToSelect);
+      } else if (!selectedCompany && data && data.length > 0) {
+        // Fallback: selecionar primeira se nenhuma estiver selecionada
+        setSelectedCompany(data[0]);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar empresas';

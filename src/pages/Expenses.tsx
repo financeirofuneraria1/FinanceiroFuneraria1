@@ -64,7 +64,7 @@ export default function Expenses() {
     setLoading(true);
     const { data, error } = await supabase
       .from('expenses')
-      .select('*, categories(name)')
+      .select('id, description, amount, date, notes, category_id, status, categories(name)')
       .eq('company_id', selectedCompany.id)
       .order('date', { ascending: false });
 

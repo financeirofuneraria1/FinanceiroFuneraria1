@@ -16,7 +16,6 @@ interface PendingItem {
   description: string;
   amount: number;
   date: string;
-  dueDate?: string;
   type: 'revenue' | 'expense';
   status: 'pendente' | 'pago' | 'recebido' | 'cancelado';
   daysOverdue: number;
@@ -38,13 +37,15 @@ export default function Pendencies() {
   }, [user, selectedCompany, filterType]);
 
   const fetchPendingItems = async () => {
+    if (!selectedCompany) return;
+    
     setLoading(true);
     try {
       // Fetch pendentes receitas
       const { data: revenues } = await supabase
         .from('revenues')
         .select('id, description, amount, date, status')
-        .eq('company_id', selectedCompany?.id || '')
+        .eq('company_id', selectedCompany.id)
         .eq('status', 'pendente')
         .order('date', { ascending: true });
 
@@ -52,7 +53,7 @@ export default function Pendencies() {
       const { data: expenses } = await supabase
         .from('expenses')
         .select('id, description, amount, date, status')
-        .eq('company_id', selectedCompany?.id || '')
+        .eq('company_id', selectedCompany.id)
         .eq('status', 'pendente')
         .order('date', { ascending: true });
 

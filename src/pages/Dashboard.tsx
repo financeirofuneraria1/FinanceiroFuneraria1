@@ -138,6 +138,7 @@ export default memo(function Dashboard() {
     if (user && selectedCompany) {
       fetchDashboardData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, selectedCompany]);
 
   const fetchDashboardData = async () => {
@@ -176,12 +177,14 @@ export default memo(function Dashboard() {
           .from('revenues')
           .select('id, description, amount, date')
           .eq('company_id', selectedCompany.id)
+          .eq('status', 'recebido')
           .order('date', { ascending: false })
           .limit(5),
         supabase
           .from('expenses')
           .select('id, description, amount, date')
           .eq('company_id', selectedCompany.id)
+          .eq('status', 'pago')
           .order('date', { ascending: false })
           .limit(5),
       ]);

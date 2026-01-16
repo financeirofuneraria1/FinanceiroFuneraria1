@@ -52,7 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
     
-    return { error: error as Error | null };
+    // Melhorar mensagem de erro para caso de usuário duplicado
+    if (error) {
+      let errorMessage = error.message;
+      if (error.message.includes('already registered')) {
+        errorMessage = 'Este email já está registrado. Tente fazer login ou use outro email.';
+      }
+      return { error: { ...error, message: errorMessage } as Error | null };
+    }
+    
+    return { error: null };
   };
 
   const signIn = async (email: string, password: string) => {

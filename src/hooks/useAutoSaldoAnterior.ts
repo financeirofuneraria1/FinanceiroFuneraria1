@@ -3,7 +3,7 @@ import { format, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const useAutoSaldoAnterior = () => {
-  const generateSaldoAnterior = async (companyId: string, startMonth: string) => {
+  const generateSaldoAnterior = async (companyId: string, startMonth: string, userId?: string) => {
     /**
      * Gera "Saldo anterior" automaticamente começando no mês selecionado
      * Se você seleciona Novembro, ele:
@@ -12,6 +12,7 @@ export const useAutoSaldoAnterior = () => {
      * 3. E assim por diante...
      * @param companyId - ID da empresa
      * @param startMonth - Mês selecionado no formato 'yyyy-MM' (ex: '2025-11')
+     * @param userId - ID do usuário (opcional, obtém do context se não fornecido)
      */
 
     try {
@@ -80,6 +81,7 @@ export const useAutoSaldoAnterior = () => {
           } else {
             const { error: insertError } = await supabase.from('revenues').insert({
               company_id: companyId,
+              user_id: userId,
               description: `Saldo anterior conta`,
               amount: saldo,
               date: creationDate,

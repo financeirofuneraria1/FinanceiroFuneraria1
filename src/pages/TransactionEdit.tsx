@@ -52,6 +52,7 @@ export default function TransactionEdit() {
     if (user && selectedCompany) {
       fetchTransactions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, selectedCompany, selectedMonth]);
 
   const fetchTransactions = async () => {
@@ -139,6 +140,12 @@ export default function TransactionEdit() {
   const handleAddTransaction = async () => {
     if (!selectedCompany || !newTransaction.description || !newTransaction.amount) return;
 
+    const amount = parseFloat(newTransaction.amount);
+    if (amount <= 0) {
+      console.error('Amount must be greater than 0');
+      return;
+    }
+
     const table = newTransaction.type === 'revenue' ? 'revenues' : 'expenses';
     
     try {
@@ -146,9 +153,9 @@ export default function TransactionEdit() {
         company_id: selectedCompany.id,
         user_id: user?.id,
         description: newTransaction.description,
-        amount: parseFloat(newTransaction.amount),
+        amount: amount,
         date: newTransaction.date,
-        status: 'recebido',
+        status: 'pendente',
       });
 
       setNewTransaction({
@@ -175,7 +182,7 @@ export default function TransactionEdit() {
     if (!selectedCompany || !confirm('Deseja gerar saldos anteriores automaticamente para os próximos meses?')) return;
 
     setGeneratingAutoSaldo(true);
-    const result = await generateSaldoAnterior(selectedCompany.id, selectedMonth);
+    const result = await generateSaldoAnterior(selectedCompany.id, selectedMonth, user?.id);
     
     if (result.success) {
       alert('✓ Saldos anteriores gerados com sucesso!');
@@ -287,6 +294,7 @@ export default function TransactionEdit() {
                   <Input
                     type="number"
                     step="0.01"
+                    min="0.01"
                     value={newTransaction.amount}
                     onChange={(e) =>
                       setNewTransaction({ ...newTransaction, amount: e.target.value })
@@ -347,6 +355,7 @@ export default function TransactionEdit() {
                               <Input
                                 type="number"
                                 step="0.01"
+                                min="0.01"
                                 value={editData.amount || ''}
                                 onChange={(e) =>
                                   setEditData({
@@ -444,6 +453,7 @@ export default function TransactionEdit() {
                               <Input
                                 type="number"
                                 step="0.01"
+                                min="0.01"
                                 value={editData.amount || ''}
                                 onChange={(e) =>
                                   setEditData({
