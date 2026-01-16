@@ -50,7 +50,7 @@ const StatsCards = memo(({ totalRevenues, totalExpenses, balance, formatCurrency
         <ArrowLeftRight className={`h-5 w-5 ${balance >= 0 ? 'text-success' : 'text-destructive'}`} />
       </CardHeader>
       <CardContent>
-        <p className={`text-2xl font-bold ${balance >= 0 ? 'text-success' : 'text-destructive'}`}>  
+        <p className={`text-2xl font-bold ${balance >= 0 ? 'text-success' : 'text-destructive'}`}> 
           {formatCurrency(balance)}
         </p>
       </CardContent>
@@ -63,6 +63,7 @@ export default memo(function CashFlow() {
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [basis, setBasis] = useState<'cash' | 'accrual'>('cash');
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [totalRevenues, setTotalRevenues] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
@@ -84,7 +85,7 @@ export default memo(function CashFlow() {
       fetchCashFlowData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, selectedCompany, selectedMonth]);
+  }, [user, selectedCompany, selectedMonth, basis]);
 
   const fetchCashFlowData = async () => {
     if (!selectedCompany) return;
@@ -99,29 +100,33 @@ export default memo(function CashFlow() {
     const end = format(endDate, 'yyyy-MM-dd');
 
     try {
-      // Filtrar por status para considerar apenas entradas/saídas efetivamente realizadas
-      const [revenuesResult, expensesResult] = await Promise.all([
-        supabase
-          .from('revenues')
-          .select('amount, date')
-          .eq('company_id', selectedCompany.id)
-          .gte('date', start)
-          .lte('date', end)
-          .eq('status', 'recebido'), // Apenas receitas recebidas
-        supabase
-          .from('expenses')
-          .select('amount, date')
-          .eq('company_id', selectedCompany.id)
-          .gte('date', start)
-          .lte('date', end)
-          .eq('status', 'pago'), // Apenas despesas pagas
-      ]);
+      // Construir consultas e, se o regime for 'cash', filtrar por status realizado
+      let revenueQuery = supabase
+        .from('revenues')
+        .select('amount, date')
+        .eq('company_id', selectedCompany.id)
+        .gte('date', start)
+        .lte('date', end);
 
-      const revenues = revenuesResult.data || [];
-      const expenses = expensesResult.data || [];
+      let expenseQuery = supabase
+        .from('expenses')
+        .select('amount, date')
+        .eq('company_id', selectedCompany.id)
+        .gte('date', start)
+        .lte('date', end);
 
-      const revTotal = revenues.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
-      const expTotal = expenses.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      if (basis === 'cash') {
+        revenueQuery = (revenueQuery as any).eq('status', 'recebido');
+        expenseQuery = (expenseQuery as any).eq('status', 'pago');
+      }
+
+      const [revenuesResult, expensesResult] = await Promise.all([revenueQuery, expenseQuery]);
+
+      const revenues = (revenuesResult as any).data || [];
+      const expenses = (expensesResult as any).data || [];
+
+      const revTotal = revenues.reduce((sum: number, r: any) => sum + Number(r.amount), 0) || 0;
+      const expTotal = expenses.reduce((sum: number, e: any) => sum + Number(e.amount), 0) || 0;
       setTotalRevenues(revTotal);
       setTotalExpenses(expTotal);
 
@@ -133,14 +138,14 @@ export default memo(function CashFlow() {
         dailyMap.set(dayStr, { revenues: 0, expenses: 0 });
       }
 
-      revenues.forEach((r) => {
+      revenues.forEach((r: any) => {
         const dayStr = format(new Date(r.date), 'dd/MM');
         const current = dailyMap.get(dayStr) || { revenues: 0, expenses: 0 };
         current.revenues += Number(r.amount);
         dailyMap.set(dayStr, current);
       });
 
-      expenses.forEach((e) => {
+      expenses.forEach((e: any) => {
         const dayStr = format(new Date(e.date), 'dd/MM');
         const current = dailyMap.get(dayStr) || { revenues: 0, expenses: 0 };
         current.expenses += Number(e.amount);
@@ -188,9 +193,28 @@ export default memo(function CashFlow() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Fluxo de Caixa</h1>
-        <p className="text-muted-foreground">{selectedCompany.name}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Fluxo de Caixa</h1>
+          <p className="text-muted-foreground">{selectedCompany.name}</p>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {/* Month selector (if needed in UI) can be placed here in the future */}
+
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-muted-foreground">Regime</span>
+            <Select value={basis} onValueChange={(v) => setBasis(v as 'cash' | 'accrual')}> 
+              <SelectTrigger className="w-40">
+                <SelectValue>{basis === 'cash' ? 'Caixa' : 'Competência'}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Caixa</SelectItem>
+                <SelectItem value="accrual">Competência</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       <StatsCards
