@@ -5,10 +5,10 @@ import { ptBR } from 'date-fns/locale';
 export const useAutoSaldoAnterior = () => {
   const generateSaldoAnterior = async (companyId: string, startMonth: string) => {
     /**
-     * Gera "Saldo anterior" automaticamente para o mês selecionado e próximos 11 meses
+     * Gera "Saldo anterior" automaticamente começando no mês selecionado
      * Se você seleciona Novembro, ele:
-     * 1. Calcula saldo de OUTUBRO e cria em 1º de NOVEMBRO
-     * 2. Calcula saldo de NOVEMBRO e cria em 1º de DEZEMBRO
+     * 1. Calcula saldo de NOVEMBRO e cria em 1º de DEZEMBRO
+     * 2. Calcula saldo de DEZEMBRO e cria em 1º de JANEIRO
      * 3. E assim por diante...
      * @param companyId - ID da empresa
      * @param startMonth - Mês selecionado no formato 'yyyy-MM' (ex: '2025-11')
@@ -17,13 +17,13 @@ export const useAutoSaldoAnterior = () => {
     try {
       const [year, month] = startMonth.split('-').map(Number);
       
-      // Começar um mês ANTES do mês selecionado
-      let processingMonth = new Date(year, month - 2, 1); // Mês anterior
-      let creationMonth = new Date(year, month - 1, 1); // Mês selecionado
+      // Começar no mês selecionado
+      let processingMonth = new Date(year, month - 1, 1); // Mês selecionado
+      let creationMonth = new Date(year, month, 1); // Próximo mês
 
-      console.log(`🔄 Iniciando geração de saldos anteriores a partir de ${format(creationMonth, 'MMMM yyyy', { locale: ptBR })}`);
+      console.log(`🔄 Iniciando geração de saldos anteriores a partir de ${format(processingMonth, 'MMMM yyyy', { locale: ptBR })}`);
 
-      // Gerar para os próximos 12 meses (incluindo o mês selecionado)
+      // Gerar para os próximos 12 meses
       for (let i = 0; i < 12; i++) {
         const monthStart = startOfMonth(processingMonth).toISOString().split('T')[0];
         const monthEnd = endOfMonth(processingMonth).toISOString().split('T')[0];
@@ -69,16 +69,13 @@ export const useAutoSaldoAnterior = () => {
           .from('revenues')
           .select('id')
           .eq('company_id', companyId)
-          .eq('date', creationDate)
-          .order('description');
+          .eq('date', creationDate);
 
-        const hasSaldoAnterior = existingSaldo?.some(r => 
-          r.id // Verificar se tem algum lançamento no dia 1
-        );
+        const hasSaldoAnterior = existingSaldo && existingSaldo.length > 0;
 
         // Se saldo for diferente de zero, criar
         if (saldo !== 0) {
-          if (hasSaldoAnterior && existingSaldo && existingSaldo.length > 0) {
+          if (hasSaldoAnterior) {
             console.log(`   ⏭️  Saldo anterior já existe em ${format(creationMonth, 'MMMM yyyy', { locale: ptBR })}`);
           } else {
             const { error: insertError } = await supabase.from('revenues').insert({

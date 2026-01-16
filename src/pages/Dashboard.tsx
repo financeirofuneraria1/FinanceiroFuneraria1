@@ -154,12 +154,14 @@ export default memo(function Dashboard() {
           .from('revenues')
           .select('amount')
           .eq('company_id', selectedCompany.id)
+          .eq('status', 'recebido')
           .gte('date', monthStart)
           .lte('date', monthEnd),
         supabase
           .from('expenses')
           .select('amount')
           .eq('company_id', selectedCompany.id)
+          .eq('status', 'pago')
           .gte('date', monthStart)
           .lte('date', monthEnd),
       ]);
@@ -202,12 +204,14 @@ export default memo(function Dashboard() {
             .from('revenues')
             .select('amount')
             .eq('company_id', selectedCompany.id)
+            .eq('status', 'recebido')
             .gte('date', start)
             .lte('date', end),
           supabase
             .from('expenses')
             .select('amount')
             .eq('company_id', selectedCompany.id)
+            .eq('status', 'pago')
             .gte('date', start)
             .lte('date', end),
         ]);

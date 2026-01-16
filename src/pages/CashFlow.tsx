@@ -103,12 +103,14 @@ export default memo(function CashFlow() {
           .from('revenues')
           .select('amount, date')
           .eq('company_id', selectedCompany.id)
+          .eq('status', 'recebido')
           .gte('date', start)
           .lte('date', end),
         supabase
           .from('expenses')
           .select('amount, date')
           .eq('company_id', selectedCompany.id)
+          .eq('status', 'pago')
           .gte('date', start)
           .lte('date', end),
       ]);
