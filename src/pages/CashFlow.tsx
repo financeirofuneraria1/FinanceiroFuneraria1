@@ -42,7 +42,7 @@ const StatsCards = memo(({ totalRevenues, totalExpenses, balance, formatCurrency
       </CardContent>
     </Card>
 
-    <Card className={`border-l-4 ${balance >= 0 ? 'border-l-success' : 'border-l-destructive'}`}>
+    <Card className={`border-l-4 ${balance >= 0 ? 'border-l-success' : 'border-l-destructive'}`}> 
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           Saldo do Período
@@ -50,7 +50,7 @@ const StatsCards = memo(({ totalRevenues, totalExpenses, balance, formatCurrency
         <ArrowLeftRight className={`h-5 w-5 ${balance >= 0 ? 'text-success' : 'text-destructive'}`} />
       </CardHeader>
       <CardContent>
-        <p className={`text-2xl font-bold ${balance >= 0 ? 'text-success' : 'text-destructive'}`}>
+        <p className={`text-2xl font-bold ${balance >= 0 ? 'text-success' : 'text-destructive'}`}> 
           {formatCurrency(balance)}
         </p>
       </CardContent>
@@ -63,6 +63,7 @@ export default memo(function CashFlow() {
   const { user } = useAuth();
   const { selectedCompany } = useCompany();
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [basis, setBasis] = useState<'cash' | 'accrual'>('cash');
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [totalRevenues, setTotalRevenues] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
@@ -83,43 +84,49 @@ export default memo(function CashFlow() {
     if (user && selectedCompany) {
       fetchCashFlowData();
     }
-  }, [user, selectedCompany, selectedMonth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, selectedCompany, selectedMonth, basis]);
 
   const fetchCashFlowData = async () => {
     if (!selectedCompany) return;
 
     setLoading(true);
-    
+
     const [year, month] = selectedMonth.split('-').map(Number);
     const startDate = startOfMonth(new Date(year, month - 1));
     const endDate = endOfMonth(new Date(year, month - 1));
-    
+
     const start = format(startDate, 'yyyy-MM-dd');
     const end = format(endDate, 'yyyy-MM-dd');
 
     try {
-      const [revenuesResult, expensesResult] = await Promise.all([
-        supabase
-          .from('revenues')
-          .select('amount, date')
-          .eq('company_id', selectedCompany.id)
-          .eq('status', 'recebido')
-          .gte('date', start)
-          .lte('date', end),
-        supabase
-          .from('expenses')
-          .select('amount, date')
-          .eq('company_id', selectedCompany.id)
-          .eq('status', 'pago')
-          .gte('date', start)
-          .lte('date', end),
-      ]);
+      // Construir consultas e, se o regime for 'cash', filtrar por status realizado
+      let revenueQuery = supabase
+        .from('revenues')
+        .select('amount, date')
+        .eq('company_id', selectedCompany.id)
+        .gte('date', start)
+        .lte('date', end);
 
-      const revenues = revenuesResult.data || [];
-      const expenses = expensesResult.data || [];
+      let expenseQuery = supabase
+        .from('expenses')
+        .select('amount, date')
+        .eq('company_id', selectedCompany.id)
+        .gte('date', start)
+        .lte('date', end);
 
-      const revTotal = revenues.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
-      const expTotal = expenses.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      if (basis === 'cash') {
+        revenueQuery = (revenueQuery as any).eq('status', 'recebido');
+        expenseQuery = (expenseQuery as any).eq('status', 'pago');
+      }
+
+      const [revenuesResult, expensesResult] = await Promise.all([revenueQuery, expenseQuery]);
+
+      const revenues = (revenuesResult as any).data || [];
+      const expenses = (expensesResult as any).data || [];
+
+      const revTotal = revenues.reduce((sum: number, r: any) => sum + Number(r.amount), 0) || 0;
+      const expTotal = expenses.reduce((sum: number, e: any) => sum + Number(e.amount), 0) || 0;
       setTotalRevenues(revTotal);
       setTotalExpenses(expTotal);
 
@@ -131,14 +138,14 @@ export default memo(function CashFlow() {
         dailyMap.set(dayStr, { revenues: 0, expenses: 0 });
       }
 
-      revenues.forEach((r) => {
+      revenues.forEach((r: any) => {
         const dayStr = format(new Date(r.date), 'dd/MM');
         const current = dailyMap.get(dayStr) || { revenues: 0, expenses: 0 };
         current.revenues += Number(r.amount);
         dailyMap.set(dayStr, current);
       });
 
-      expenses.forEach((e) => {
+      expenses.forEach((e: any) => {
         const dayStr = format(new Date(e.date), 'dd/MM');
         const current = dailyMap.get(dayStr) || { revenues: 0, expenses: 0 };
         current.expenses += Number(e.amount);
@@ -186,103 +193,63 @@ export default memo(function CashFlow() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Fluxo de Caixa</h1>
           <p className="text-muted-foreground">{selectedCompany.name}</p>
         </div>
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Selecione o mês" />
-          </SelectTrigger>
-          <SelectContent>
-            {monthOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                <span className="capitalize">{option.label}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+        <div className="flex items-center gap-4">
+          {/* Month selector (if needed in UI) can be placed here in the future */}
+
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-muted-foreground">Regime</span>
+            <Select value={basis} onValueChange={(v) => setBasis(v as 'cash' | 'accrual')}> 
+              <SelectTrigger className="w-40">
+                <SelectValue>{basis === 'cash' ? 'Caixa' : 'Competência'}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Caixa</SelectItem>
+                <SelectItem value="accrual">Competência</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <>
-          <StatsCards totalRevenues={totalRevenues} totalExpenses={totalExpenses} balance={balance} formatCurrency={formatCurrency} />
+      <StatsCards
+        totalRevenues={totalRevenues}
+        totalExpenses={totalExpenses}
+        balance={balance}
+        formatCurrency={formatCurrency}
+      />
 
-          {/* Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Evolução Diária</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={dailyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="date"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                      tickLine={false}
-                      tickFormatter={(value) => `R$${(value / 1000).toFixed(0)}k`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                      formatter={(value: number, name: string) => [
-                        formatCurrency(value),
-                        name === 'revenues' ? 'Receitas' : name === 'expenses' ? 'Despesas' : 'Saldo',
-                      ]}
-                    />
-                    <Legend
-                      formatter={(value) =>
-                        value === 'revenues' ? 'Receitas' : value === 'expenses' ? 'Despesas' : 'Saldo Acumulado'
-                      }
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="revenues"
-                      stroke="hsl(var(--chart-1))"
-                      strokeWidth={2}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="expenses"
-                      stroke="hsl(var(--chart-2))"
-                      strokeWidth={2}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="balance"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={3}
-                      dot={false}
-                      strokeDasharray="5 5"
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+      {/* Chart */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Fluxo Diário</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="animate-spin" />
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={dailyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Legend />
+                <Line type="monotone" dataKey="revenues" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="expenses" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="balance" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 });
