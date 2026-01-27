@@ -4,8 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCompany } from '@/hooks/useCompany';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TrendingUp, TrendingDown, ArrowLeftRight, Loader2 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, TrendingDown, ArrowLeftRight, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -193,27 +194,63 @@ export default memo(function CashFlow() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Fluxo de Caixa</h1>
-          <p className="text-muted-foreground">{selectedCompany.name}</p>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Fluxo de Caixa</h1>
+            <p className="text-muted-foreground">{selectedCompany.name}</p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-muted-foreground">Regime</span>
+              <Select value={basis} onValueChange={(v) => setBasis(v as 'cash' | 'accrual')}> 
+                <SelectTrigger className="w-40">
+                  <SelectValue>{basis === 'cash' ? 'Caixa' : 'Competência'}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Caixa</SelectItem>
+                  <SelectItem value="accrual">Competência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          {/* Month selector (if needed in UI) can be placed here in the future */}
+        {/* Period Navigation */}
+        <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setSelectedMonth(format(subMonths(parseISO(selectedMonth + '-01'), 1), 'yyyy-MM'))}
+            className="h-9 w-9"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
 
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-muted-foreground">Regime</span>
-            <Select value={basis} onValueChange={(v) => setBasis(v as 'cash' | 'accrual')}> 
-              <SelectTrigger className="w-40">
-                <SelectValue>{basis === 'cash' ? 'Caixa' : 'Competência'}</SelectValue>
+          <div className="flex-1">
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cash">Caixa</SelectItem>
-                <SelectItem value="accrual">Competência</SelectItem>
+                {monthOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
+
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setSelectedMonth(format(addMonths(parseISO(selectedMonth + '-01'), 1), 'yyyy-MM'))}
+            className="h-9 w-9"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
